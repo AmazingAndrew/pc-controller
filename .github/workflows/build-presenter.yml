@@ -91,7 +91,7 @@ jobs:
             -e IDF_CCACHE_ENABLE=1
           command: |
             idf.py -B /tmp/presenter-build \
-              -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults sdkconfig.presenter.defaults" \
+              -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.presenter.defaults' \
               set-target esp32c3
 
       - name: Build PC Controller presenter firmware
