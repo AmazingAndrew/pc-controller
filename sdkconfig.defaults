@@ -52,4 +52,28 @@ CONFIG_BT_NIMBLE_ROLE_BROADCASTER=y
 CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
 CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
 CONFIG_BT_NIMBLE_HOST_BASED_PRIVACY=n
-CONFIG_BT_NIMBLE_NVS_PERSIST=n
+CONFIG_BT_NIMBLE_NVS_PERSIST=y
+
+# --- PC Controller (presenter) ---
+# Build-profile selector. Kept as a config symbol for downstream consumers that
+# inspect sdkconfig; the legacy if(CONFIG_PC_CONTROLLER_APP) branch in
+# main/CMakeLists.txt has been removed, so all PC Controller sources are
+# compiled unconditionally alongside the demo sources.
+# Basis: docs/software-design/pc-controller/requirements.md §2.
+CONFIG_PC_CONTROLLER_APP=y
+
+# Wi-Fi is not used by the BLE HID presenter; disabling it releases roughly
+# 30-50 KB of RAM that the memory budget in requirements.md §9 relies on.
+CONFIG_ESP_WIFI_ENABLED=n
+
+# NimBLE Security Manager: legacy pairing + Secure Connections are required for
+# the Passkey Entry pairing flow and bond management.
+# Basis: requirements.md §2 (NimBLE Security Manager) and FR-07/FR-08.
+CONFIG_BT_NIMBLE_SM_LEGACY=y
+CONFIG_BT_NIMBLE_SM_SC=y
+
+# Power management: light-sleep prerequisites of the power sub-state machine
+# (dim -> screen off -> light sleep -> deep sleep).
+# Basis: requirements.md §6 power FSM and FR-10.
+CONFIG_PM_ENABLE=y
+CONFIG_FREERTOS_USE_TICKLESS_IDLE=y

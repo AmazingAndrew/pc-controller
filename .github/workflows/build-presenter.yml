@@ -81,59 +81,11 @@ jobs:
             build-presenter-ccache-${{ github.ref_type }}-${{ github.ref_name }}-
             build-presenter-ccache-
 
-      # SDKCONFIG_DEFAULTS 必须同时包含 sdkconfig.defaults(基础配置:
-      # Flash 大小、分区表、bootloader、console、字体、FreeRTOS 等)和
-      # sdkconfig.presenter.defaults(presenter 档增量:Wi-Fi 关闭、
-      # NimBLE 安全设置、电源管理、字体再声明)。
-      #
-      # Run #14 调试记录:
-      #  #9   仅在 Configure 用 -D "SDKCONFIG_DEFAULTS=...;..." 设进
-      #       CMake cache。Build / Merge 也成功,但生成的 sdkconfig
-      #       不带 CONFIG_PC_CONTROLLER_APP=y → verify 失败。
-      #  #10  同 #9,verify_presenter_build.py 明确报 sdkconfig 缺
-      #       CONFIG_PC_CONTROLLER_APP,说明 sdkconfig.presenter.defaults
-      #       没有被加载。
-      #  #11  改用 extra_docker_args "-e SDKCONFIG_DEFAULTS=...;..."
-      #       注入到容器 env,Configure 步骤在 1s 内失败(exit 1),
-      #       推测 docker -e 参数在多 -e 同时存在或 ; 在 value 中
-      #       被 action 处理异常。
-      #  #12  改用 inline env prefix SDKCONFIG_DEFAULTS="..." 写在
-      #       command 字符串里。Configure / Build / Merge 三步都成功,
-      #       但独立 Verify 步骤仍然 exit 2,缺 CONFIG_PC_CONTROLLER_APP=y。
-      #       根因:每个 espressif/esp-idf-ci-action step 各自跑独立
-      #       docker 容器,/tmp/presenter-build 是容器内 tmpfs,前一个
-      #       step 退出会被销毁,后续 Verify 步骤看不到 build artifacts。
-      #  #13  改用 bash -c '...merge-bin && verify...' 把 verify
-      #       合并到 Merge 步骤内,Merge step 在 1s 内失败。根因:
-      #       esp-idf-ci-action 外层 bash -c '...' 包裹 user command,
-      #       嵌套 bash -c '...' 单引号提前终止外层单引号参数,导致
-      #       bash 解析错乱,verify 从未被调用,实际跑了一个被 bash
-      #       当独立命令看的 idf.py。
-      #  #14  改用 sh -c "..."(双引号),Merge step 跑到 27s 才失败,
-      #       说明 idf.py merge-bin 和 verify 都跑了,但仍然 exit 2。
-      #       进一步证明 /tmp/presenter-build 不是跨容器共享的,Merge
-      #       启动时是空 tmpfs,即便 SDKCONFIG_DEFAULTS 在 env 里,merge-bin
-      #       重建的 sdkconfig(走的是 idf.py 的 sdkconfig generation 路径)
-      #       与 Configure/Build 步骤生成的 sdkconfig 行为不一致,最终
-      #       verify 拿到的 sdkconfig 缺 PC_CONTROLLER_APP=y。
-      #
-      # Run #15 调试记录:
-      #  #14  sh -c "..." 单容器版 Merge step 27s 失败。
-      #  #15  set-target + build + merge-bin + verify 链式 + 单容器版
-      #       step 在 1m29s 失败。短于完整 set-target+build+merge 时间,
-      #       说明链中命令提前退出,或 YAML 长字符串多转义导致 set-target
-      #       失败,但 annotations 只给 "Process completed with exit code 2",
-      #       无法定位具体哪一段命令。
-      #
-      # 修复:把 set-target / build / merge-bin / verify 全部封装到
-      # tools/build_presenter_firmware.sh,workflow 的 command 只剩
-      # 一行 `bash tools/build_presenter_firmware.sh`,彻底避开 YAML
-      # 多层引号和外层 bash -c '...' 包装带来的字符层不确定性。脚本
-      # 自带 set -eu、单条 SDKCONFIG_DEFAULTS 赋值、以及 stderr 上的
-      # 阶段输出,任何中间命令退出都会冒到 workflow log,verify 失败
-      # 也会先打出 sdkconfig 路径 / 大小 / 相似行。
-
-      - name: Build, merge and verify PC Controller presenter firmware
+      # Single-step ESP-IDF build, matching the upstream build-firmware.yml
+      # pattern. The presenter profile has been merged into sdkconfig.defaults,
+      # so no SDKCONFIG_DEFAULTS override is needed here: idf.py picks up the
+      # single defaults file automatically.
+      - name: Build and verify presenter firmware
         uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
         with:
           esp_idf_version: v5.5.3
@@ -141,12 +93,12 @@ jobs:
           extra_docker_args: >-
             -e CCACHE_DIR=/app/${{ github.repository }}/.ccache
             -e IDF_CCACHE_ENABLE=1
-          command: bash tools/build_presenter_firmware.sh
+          command: idf.py build
 
       - name: Upload PC Controller presenter firmware artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: presenter-firmware-${{ github.run_id }}
-          path: /tmp/presenter-build/FoloToy-AI-Passport-full.bin
+          path: build/FoloToy-AI-Passport.bin
           if-no-files-found: error
           retention-days: 7

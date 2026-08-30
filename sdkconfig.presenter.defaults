@@ -1,63 +1,14 @@
 # ============================================================================
-# PC Controller (presenter) build profile defaults
+# DEPRECATED -- retained as a placeholder only.
 #
-# Layered on top of sdkconfig.defaults via:
+# All PC Controller (presenter) configuration has been merged into
+# sdkconfig.defaults. This file is no longer loaded by ESP-IDF builds; the
+# SDKCONFIG_DEFAULTS CMake / idf.py flag references sdkconfig.defaults only.
+#
+# Do not add new options here. Add them to sdkconfig.defaults so that the
+# default demo profile and the PC Controller presenter profile stay in lock
+# step with a single source of truth.
+#
+# Historical layering contract (now obsolete):
 #   SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.presenter.defaults"
-#
-# Contract: this file only takes effect in the presenter profile. The default
-# demo profile keeps using sdkconfig.defaults alone, and its build artifacts
-# must remain byte-for-byte identical. Do not move or edit sdkconfig.defaults
-# from here.
-#
-# Source of truth: docs/software-design/pc-controller/requirements.md
 # ============================================================================
-
-# Build-profile selector: switches main/CMakeLists.txt to the PC Controller
-# source set (see the CONFIG_PC_CONTROLLER_APP branch there).
-# Basis: requirements.md §2 (independent build profile).
-CONFIG_PC_CONTROLLER_APP=y
-
-# Wi-Fi is not used by the BLE HID presenter; disabling it releases roughly
-# 30-50 KB of RAM, which the memory budget in requirements.md §9 relies on.
-CONFIG_ESP_WIFI_ENABLED=n
-
-# Bluetooth LE / NimBLE host. CONFIG_BT_ENABLED and CONFIG_BT_NIMBLE_ENABLED
-# are already set to y in sdkconfig.defaults; they are restated here so this
-# file documents the presenter profile's radio baseline on its own.
-CONFIG_BT_ENABLED=y
-CONFIG_BT_NIMBLE_ENABLED=y
-
-# Security Manager: legacy pairing plus Secure Connections are required for
-# the Passkey Entry pairing flow and bond management.
-# Basis: requirements.md §2 (NimBLE Security Manager enabled) and FR-07/FR-08.
-CONFIG_BT_NIMBLE_SM_LEGACY=y
-CONFIG_BT_NIMBLE_SM_SC=y
-
-# Persist NimBLE bonding records in the NVS partition. This intentionally
-# overrides sdkconfig.defaults (=n): the three-slot bond model cannot survive
-# a reboot without persistence.
-# Basis: requirements.md §2 and §8 (NimBLE default namespace in NVS).
-CONFIG_BT_NIMBLE_NVS_PERSIST=y
-
-# Keep the single-connection host from sdkconfig.defaults; the three device
-# slots use serial switching under MAX_CONNECTIONS=1, not parallel links.
-# Basis: requirements.md §2 and FR-06.
-CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
-
-# Power management: CONFIG_PM_ENABLE plus tickless idle are the light-sleep
-# prerequisites of the power sub-state machine (dim -> screen off -> light
-# sleep -> deep sleep).
-# Basis: requirements.md §6 power FSM and FR-10.
-CONFIG_PM_ENABLE=y
-CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
-
-# --- LVGL fonts (presenter profile) ---
-# CI's Configure step passes `-D SDKCONFIG_DEFAULTS=sdkconfig.presenter.link`
-# (a symlink to this file), so only this file is loaded and the font defaults
-# from sdkconfig.defaults are NOT inherited. Restate the fonts the presenter UI
-# actually uses here so the CI build produces a firmware that links the
-# required glyphs. The same lines are kept in sdkconfig.defaults for local
-# demo-profile builds that load only that file.
-# Basis: requirements.md §5 (LVGL UI) and §9 (flash budget for fonts).
-CONFIG_LV_FONT_MONTSERRAT_20=y
-CONFIG_LV_FONT_UNSCII_8=y

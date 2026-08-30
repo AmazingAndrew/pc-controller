@@ -25,3 +25,7 @@ rather than merged into an existing one.
 - [Audio Compression Trade-offs on ESP32-C3](shinku-chen/audio-compression-trade-offs.md) — how a voice-playback codec was chosen on limited flash (IMA-ADPCM vs Opus vs MP3), with measured capacity and decoder cost.
 - [Post-Release Follow-up for the AI Passport Publishing Flow](shinku-chen/post-release-follow-up.md) — confirm the publish destination, include the data partition in a release, and the consent gates for the post-release tracks.
 - [Display Refresh and Deep-sleep on ESP32-C3 (No PSRAM)](shinku-chen/display-refresh-and-deep-sleep.md) — direct panel refresh of a single image rect, RTC-GPIO deep-sleep wakeup, and the LVGL object-type misuse crash signature.
+
+### AmazingAndrew
+
+- [CI Build Pitfalls: From Dual sdkconfig to Upstream Simplicity](amazingandrew/ci-pitfalls.md) — eight concrete CI failures (executable bit, CMake list format, `espressif/esp-idf-ci-action` quoting and multi-line parsing, symlinks, ESP-IDF v5.5.3 / GCC 14 / LVGL v9 API drift) and the case for matching the upstream `validate.sh --firmware` pattern.
