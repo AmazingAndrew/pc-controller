@@ -86,18 +86,24 @@ jobs:
       # sdkconfig.presenter.defaults(presenter 档增量:Wi-Fi 关闭、
       # NimBLE 安全设置、电源管理、字体再声明)。
       #
-      # Run #9 / Run #10 调试记录:仅在 Configure 步骤用
-      # `-D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.presenter.defaults"`
-      # 设进 CMake cache 不够 —— esp-idf-ci-action 每个 step 是独立 docker
-      # 容器,Build / Merge 步骤重新跑 cmake 时若 cache 没命中或被 invalidate,
-      # SDKCONFIG_DEFAULTS 就退回成空(只走 sdkconfig 默认值,等于只读
-      # sdkconfig.defaults),导致生成的 sdkconfig 不再带
-      # CONFIG_PC_CONTROLLER_APP=y,main/CMakeLists.txt 退回 demo 分支,
-      # 合并出来的固件 layout 不符合 presenter 档预期。
+      # Run #9-#11 调试记录:
+      #  #9   仅在 Configure 用 -D "SDKCONFIG_DEFAULTS=...;..." 设进
+      #       CMake cache。Build / Merge 也成功,但生成的 sdkconfig
+      #       不带 CONFIG_PC_CONTROLLER_APP=y → verify 失败。
+      #  #10  同 #9,verify_presenter_build.py 明确报 sdkconfig 缺
+      #       CONFIG_PC_CONTROLLER_APP,说明 sdkconfig.presenter.defaults
+      #       没有被加载。
+      #  #11  改用 extra_docker_args "-e SDKCONFIG_DEFAULTS=...;..."
+      #       注入到容器 env,Configure 步骤在 1s 内失败(exit 1),
+      #       推测 docker -e 参数在多 -e 同时存在或 ; 在 value 中
+      #       被 action 处理异常。
       #
-      # 修复:Configure / Build / Merge 三步都通过 extra_docker_args 把
-      # SDKCONFIG_DEFAULTS 注入到容器环境变量,这样无论 cmake cache
-      # 状态如何,idf.py 启动时都能读到同一份分层 defaults。
+      # 修复:用 inline env prefix `SDKCONFIG_DEFAULTS="..."` 直接写在
+      # command 字符串里。bash -c '...' 不会重新展开外层单引号里的
+      # 双引号,SDKCONFIG_DEFAULTS 值(含 ;)会被原样保留并 export
+      # 到 idf.py 进程中。Configure 同步保留 -D 作 cmake cache 兜底,
+      # Build / Merge 只靠 env prefix。三步同一份分层 defaults,cmake
+      # 重新跑也不会丢 presenter 档增量。
 
       - name: Configure PC Controller presenter profile (ESP-IDF 5.5.3 / esp32c3)
         uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
@@ -107,8 +113,7 @@ jobs:
           extra_docker_args: >-
             -e CCACHE_DIR=/app/${{ github.repository }}/.ccache
             -e IDF_CCACHE_ENABLE=1
-            -e SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.presenter.defaults
-          command: idf.py -B /tmp/presenter-build set-target esp32c3
+          command: SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.presenter.defaults" idf.py -B /tmp/presenter-build -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.presenter.defaults" set-target esp32c3
 
       - name: Build PC Controller presenter firmware
         uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
@@ -118,8 +123,7 @@ jobs:
           extra_docker_args: >-
             -e CCACHE_DIR=/app/${{ github.repository }}/.ccache
             -e IDF_CCACHE_ENABLE=1
-            -e SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.presenter.defaults
-          command: idf.py -B /tmp/presenter-build build
+          command: SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.presenter.defaults" idf.py -B /tmp/presenter-build build
 
       - name: Merge PC Controller presenter firmware binary
         uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
@@ -129,8 +133,7 @@ jobs:
           extra_docker_args: >-
             -e CCACHE_DIR=/app/${{ github.repository }}/.ccache
             -e IDF_CCACHE_ENABLE=1
-            -e SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.presenter.defaults
-          command: idf.py -B /tmp/presenter-build merge-bin -o /tmp/presenter-build/FoloToy-AI-Passport-full.bin
+          command: SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.presenter.defaults" idf.py -B /tmp/presenter-build merge-bin -o /tmp/presenter-build/FoloToy-AI-Passport-full.bin
 
       - name: Verify merged firmware layout
         uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
