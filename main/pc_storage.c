@@ -43,11 +43,13 @@ static bool addr_nonzero(const uint8_t addr[6])
 }
 
 /* 拼槽位命名空间名:"pp_slot0".."pp_slot2"。
- * 前置:调用方已保证 i < PC_SLOT_COUNT。 */
-static void slot_ns_name(uint8_t i, char out[9])
+ * 前置:调用方已保证 i < PC_SLOT_COUNT。
+ * 缓冲区 16 字节:NVS 命名空间名上限 15 字符 + '\0'。
+ * 留宽以避免 GCC -Wformat-truncation 误报(`uint8_t` 形参可
+ * 视为 unsigned int,最坏输出 3 位数字 + 7 字节前缀 = 11 字节)。 */
+static void slot_ns_name(uint8_t i, char out[16])
 {
-    /* "pp_slot"(7) + 1 位数字 + '\0' = 9 字节 */
-    snprintf(out, 9, "%s%u", NS_SLOT_PREFIX, (unsigned)i);
+    snprintf(out, 16, "%s%u", NS_SLOT_PREFIX, (unsigned)i);
 }
 
 esp_err_t pc_storage_init(void)
@@ -149,7 +151,7 @@ esp_err_t pc_slot_load(uint8_t i, pc_slot_t *s)
         return ESP_ERR_INVALID_STATE;
     }
 
-    char ns[9];
+    char ns[16];
     slot_ns_name(i, ns);
     nvs_handle_t h;
     esp_err_t err = nvs_open(ns, NVS_READONLY, &h);
@@ -192,7 +194,7 @@ esp_err_t pc_slot_save(uint8_t i, const pc_slot_t *s)
         return ESP_ERR_INVALID_STATE;
     }
 
-    char ns[9];
+    char ns[16];
     slot_ns_name(i, ns);
     nvs_handle_t h;
     esp_err_t err = nvs_open(ns, NVS_READWRITE, &h);
@@ -231,7 +233,7 @@ esp_err_t pc_slot_clear(uint8_t i)
         return ESP_ERR_INVALID_STATE;
     }
 
-    char ns[9];
+    char ns[16];
     slot_ns_name(i, ns);
     nvs_handle_t h;
     esp_err_t err = nvs_open(ns, NVS_READWRITE, &h);

@@ -50,3 +50,14 @@ CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
 # Basis: requirements.md §6 power FSM and FR-10.
 CONFIG_PM_ENABLE=y
 CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
+
+# --- LVGL fonts (presenter profile) ---
+# CI's Configure step passes `-D SDKCONFIG_DEFAULTS=sdkconfig.presenter.link`
+# (a symlink to this file), so only this file is loaded and the font defaults
+# from sdkconfig.defaults are NOT inherited. Restate the fonts the presenter UI
+# actually uses here so the CI build produces a firmware that links the
+# required glyphs. The same lines are kept in sdkconfig.defaults for local
+# demo-profile builds that load only that file.
+# Basis: requirements.md §5 (LVGL UI) and §9 (flash budget for fonts).
+CONFIG_LV_FONT_MONTSERRAT_20=y
+CONFIG_LV_FONT_UNSCII_8=y
