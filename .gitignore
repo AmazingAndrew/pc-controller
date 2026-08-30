@@ -5,6 +5,9 @@ managed_components/
 .vscode/
 .idea/
 
+# Local verification scripts (开发者调试用,不进仓库)
+_verify_bin/
+
 # Python artifacts (D2: tools/__pycache__/ 已出现于工作区,
 # 重复运行 check_repo.py / verify_firmware.py 会产生,显式忽略)
 __pycache__/
