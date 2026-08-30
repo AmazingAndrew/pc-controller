@@ -31,6 +31,10 @@ CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
 CONFIG_LV_COLOR_DEPTH_16=y
 CONFIG_LV_FONT_MONTSERRAT_14=y
 CONFIG_LV_FONT_MONTSERRAT_20=y
+# PC Controller 仪表/HUD 表达使用 8px 占位字体(主面板标签、电池
+# 百分比、底栏键名、角标等位置,主档文档中多处以 lv_font_unscii_8
+# 作为 placeholder)。只有 presenter 档需要,默认 demo 不启。
+CONFIG_LV_FONT_UNSCII_8=y
 # LVGL 内置 malloc 池大小(KB)。它是独立静态区、不与系统堆共享,配大了会白白占用 RAM。
 # 本 demo UI 简单,24KB 足够;若自建复杂界面出现绘制卡死/看门狗,调大此值。
 CONFIG_LV_MEM_SIZE_KILOBYTES=24

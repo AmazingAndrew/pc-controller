@@ -157,9 +157,15 @@ lv_obj_t *pc_fui_screen_create(const char *mode)
     lv_obj_t *mode_label = pc_fui_label(scr, mode, &lv_font_montserrat_14,
                                         lv_color_hex(PC_FUI_C_LABEL));
     lv_obj_align(mode_label, LV_ALIGN_TOP_LEFT, PC_FUI_SAFE, 8);
-    lv_obj_set_style_text_shadow_color(mode_label,
-                                       lv_color_hex(PC_FUI_C_LABEL), 0);
-    lv_obj_set_style_text_shadow_width(mode_label, 6, 0);
+    /* LVGL v9 移除 lv_obj_set_style_text_shadow_*；
+     * 文本"发光"效果改走 label 的 box shadow:
+     *   - shadow_color == 文字颜色 (青色) → 同色光晕
+     *   - shadow_width == 原 text_shadow_width → 投影宽度
+     *   - shadow_ofs_x/y 默认 0 → 中心对齐（与原 text_shadow 一致） */
+    lv_obj_set_style_shadow_color(mode_label,
+                                  lv_color_hex(PC_FUI_C_LABEL), 0);
+    lv_obj_set_style_shadow_width(mode_label, 6, 0);
+    lv_obj_set_style_shadow_opa(mode_label, LV_OPA_COVER, 0);
 
     battery_widget(scr);
     return scr;

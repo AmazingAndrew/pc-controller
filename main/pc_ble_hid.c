@@ -177,7 +177,14 @@ static int cb_hid_control(uint16_t conn_handle, uint16_t attr_handle,
     if (ctxt->op != BLE_GATT_ACCESS_OP_WRITE_CHR) return BLE_ATT_ERR_UNLIKELY;
     uint8_t cmd = 0xFF;
     if (OS_MBUF_PKTLEN(ctxt->om) >= 1) {
-        ble_hs_mbuf_to_flat(ctxt->om, 0, &cmd, 1, NULL);
+        /* NimBLE 新版 ble_hs_mbuf_to_flat 签名:
+         *   int ble_hs_mbuf_to_flat(const struct os_mbuf *om,
+         *                           void *flat, uint16_t max_len,
+         *                           uint16_t *out_copy_len);
+         * 旧版 5 参数调用在新版头文件中被当作 too many arguments,
+         * 且 uint8_t* 与 uint16_t、int 与 uint16_t* 类型不匹配触发
+         * -Werror=enum-compare/-Wint-conversion。 */
+        ble_hs_mbuf_to_flat(ctxt->om, &cmd, sizeof(cmd), NULL);
     }
     if (cmd == PC_HID_CP_SUSPEND) {
         s_host_suspended = true;
@@ -409,7 +416,7 @@ static int adv_general_locked(void)
     fields.name_len = (uint8_t)strlen(PC_DEVICE_NAME);
     fields.name_is_complete = 1;
     fields.appearance = PC_APPEARANCE_GENERIC_HID;
-    fields.appearance_is_complete = 1;
+    fields.appearance_is_present = 1;
 
     int rc = ble_gap_adv_set_fields(&fields);
     if (rc != 0) return rc;
@@ -762,7 +769,7 @@ esp_err_t pc_ble_hid_graceful_disconnect(void)
     /* FR-06:优雅断开;断开后设备按 HOGP 语义进 suspend 态——
      * 表现为:停止一切 HID 发送、不再主动通知,等待主机回连
      * (定向广播)或主机下 Suspend 指令。 */
-    int rc = ble_gap_terminate(s_conn_handle, BLE_ERR_REM_USER_CONN_TERMINATED);
+    int rc = ble_gap_terminate(s_conn_handle, BLE_ERR_REM_USER_CONN_TERM);
     if (rc != 0 && rc != BLE_HS_ENOTCONN) {
         ESP_LOGE(TAG, "graceful disconnect failed: %d", rc);
         return ESP_FAIL;
@@ -784,7 +791,7 @@ esp_err_t pc_ble_hid_stop(void)
 
     s_auto_readvertise = false;
     if (s_connected) {
-        ble_gap_terminate(s_conn_handle, BLE_ERR_REM_USER_CONN_TERMINATED);
+        ble_gap_terminate(s_conn_handle, BLE_ERR_REM_USER_CONN_TERM);
     }
     ble_gap_adv_stop();
 

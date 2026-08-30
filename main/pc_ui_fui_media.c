@@ -182,9 +182,11 @@ lv_obj_t *pc_ui_media_feedback_build(const char *title, const char *detail)
     lv_obj_set_width(big, 200);
     lv_obj_set_style_text_align(big, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(big, LV_ALIGN_TOP_MID, 0, lock_style ? 50 : 56);
-    lv_obj_set_style_text_shadow_color(big,
-                                       lv_color_hex(PC_FUI_C_GLOW), 0);
-    lv_obj_set_style_text_shadow_width(big, 8, 0);
+    /* LVGL v9 移除 lv_obj_set_style_text_shadow_*；改走 box shadow。 */
+    lv_obj_set_style_shadow_color(big,
+                                  lv_color_hex(PC_FUI_C_GLOW), 0);
+    lv_obj_set_style_shadow_width(big, 8, 0);
+    lv_obj_set_style_shadow_opa(big, LV_OPA_COVER, 0);
 
     /* 副行:档案名(锁屏)或通用副行文案。 */
     if (lock_style && profile[0] != '\0') {

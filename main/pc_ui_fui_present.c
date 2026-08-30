@@ -140,9 +140,11 @@ lv_obj_t *pc_ui_present_build(void)
     lv_obj_set_width(s_timer, 190);
     lv_obj_set_style_text_align(s_timer, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(s_timer, LV_ALIGN_TOP_MID, 0, 44);
-    lv_obj_set_style_text_shadow_color(s_timer,
-                                       lv_color_hex(PC_FUI_C_LABEL), 0);
-    lv_obj_set_style_text_shadow_width(s_timer, 8, 0);
+    /* LVGL v9 移除 lv_obj_set_style_text_shadow_*；改走 box shadow。 */
+    lv_obj_set_style_shadow_color(s_timer,
+                                  lv_color_hex(PC_FUI_C_LABEL), 0);
+    lv_obj_set_style_shadow_width(s_timer, 8, 0);
+    lv_obj_set_style_shadow_opa(s_timer, LV_OPA_COVER, 0);
 
     /* ---- 面板 2 "SLIDE"(16 px 规范值,占位用现有最大字号) ---- */
     lv_obj_t *p2 = pc_fui_panel_create(scr, 220, 72, "SLIDE");

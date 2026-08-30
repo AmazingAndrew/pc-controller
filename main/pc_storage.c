@@ -204,8 +204,11 @@ esp_err_t pc_slot_save(uint8_t i, const pc_slot_t *s)
     if (s->bound) {
         err = nvs_set_blob(h, "addr", s->addr, sizeof(s->addr));
     } else {
-        /* 未绑定槽不留 "addr" 键,保持"键存在 = 已绑定"语义 */
-        nvs_delete_key(h, "addr");
+        /* 未绑定槽不留 "addr" 键,保持"键存在 = 已绑定"语义。
+         * 注:ESP-IDF v5.x 的 NVS API 已将 nvs_delete_key 重命名为
+         * nvs_erase_key(原符号在新版本 NVS 头文件中已移除,
+         * 编译报 implicit-function-declaration)。 */
+        nvs_erase_key(h, "addr");
     }
     if (err == ESP_OK) err = nvs_set_str(h, "host_name", s->host_name);
     if (err == ESP_OK) err = nvs_set_u8(h, "os", s->os);

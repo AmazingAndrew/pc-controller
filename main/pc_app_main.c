@@ -80,12 +80,14 @@ static const char *TAG = "pc_app";
 #define FX_CAP 4                /* FSM 单次最大 3 个 effect,留 1 个余量 */
 
 /* 纯逻辑枚举与 BSP 枚举逐值同构校验(规格 §5:按键事件数值透传,
- * 无需转换)。任一侧改动都会在此编译期炸出,防止静默错位。 */
-_Static_assert(PC_BTN_UP == BSP_BTN_UP && PC_BTN_DOWN == BSP_BTN_DOWN &&
-                   PC_BTN_OK == BSP_BTN_OK,
+ * 无需转换)。任一侧改动都会在此编译期炸出,防止静默错位。
+ * 注:GCC 升级后 -Werror=enum-compare 会拒绝跨匿名枚举比较,
+ * 故显式转 int 再比较。 */
+_Static_assert((int)PC_BTN_UP == (int)BSP_BTN_UP && (int)PC_BTN_DOWN == (int)BSP_BTN_DOWN &&
+                   (int)PC_BTN_OK == (int)BSP_BTN_OK,
                "pc_btn_t / bsp_btn_t enumeration mismatch");
-_Static_assert(PC_EV_PRESS == BSP_BTN_PRESS && PC_EV_CLICK == BSP_BTN_CLICK &&
-                   PC_EV_DOUBLE == BSP_BTN_DOUBLE && PC_EV_LONG == BSP_BTN_LONG,
+_Static_assert((int)PC_EV_PRESS == (int)BSP_BTN_PRESS && (int)PC_EV_CLICK == (int)BSP_BTN_CLICK &&
+                   (int)PC_EV_DOUBLE == (int)BSP_BTN_DOUBLE && (int)PC_EV_LONG == (int)BSP_BTN_LONG,
                "pc_btn_ev_t / bsp_btn_ev_t enumeration mismatch");
 
 /* ---- 统一事件队列(规格 §7 行 162) ---- */
