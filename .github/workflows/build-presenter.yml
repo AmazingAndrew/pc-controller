@@ -1,0 +1,132 @@
+name: Build PC Controller Presenter Firmware
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/pc-controller"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-presenter-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repo-checks:
+    name: Repository checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Install verified actionlint
+        run: |
+          actionlint_bin="$(./tools/install-actionlint.sh "$RUNNER_TEMP/actionlint")"
+          echo "ACTIONLINT_BIN=${actionlint_bin}" >> "$GITHUB_ENV"
+
+      - name: Validate repository metadata
+        run: python3 tools/check_repo.py
+
+      - name: Lint GitHub Actions workflows
+        run: ${ACTIONLINT_BIN} -color .github/workflows/*.yml
+
+  host-tests:
+    name: Host tests
+    runs-on: ubuntu-latest
+    needs: repo-checks
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Install verified actionlint
+        run: |
+          actionlint_bin="$(./tools/install-actionlint.sh "$RUNNER_TEMP/actionlint")"
+          echo "ACTIONLINT_BIN=${actionlint_bin}" >> "$GITHUB_ENV"
+
+      - name: Install host build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+
+      - name: Run static gate (host tests + actionlint)
+        run: ./tools/validate.sh --static
+
+      - name: Upload host test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: presenter-host-test-logs-${{ github.run_id }}
+          path: |
+            /tmp/ai-passport-host-tests.*/
+          if-no-files-found: ignore
+          retention-days: 3
+
+  firmware-build:
+    name: ESP-IDF 5.5.3 PC Controller presenter firmware
+    runs-on: ubuntu-latest
+    needs: host-tests
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Restore ccache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .ccache
+          key: build-presenter-ccache-${{ github.ref_type }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            build-presenter-ccache-${{ github.ref_type }}-${{ github.ref_name }}-
+            build-presenter-ccache-
+
+      - name: Configure PC Controller presenter profile (ESP-IDF 5.5.3 / esp32c3)
+        uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
+        with:
+          esp_idf_version: v5.5.3
+          target: esp32c3
+          extra_docker_args: >-
+            -e CCACHE_DIR=/app/${{ github.repository }}/.ccache
+            -e IDF_CCACHE_ENABLE=1
+          command: |
+            idf.py -B /tmp/presenter-build \
+              -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults sdkconfig.presenter.defaults" \
+              set-target esp32c3
+
+      - name: Build PC Controller presenter firmware
+        uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
+        with:
+          esp_idf_version: v5.5.3
+          target: esp32c3
+          extra_docker_args: >-
+            -e CCACHE_DIR=/app/${{ github.repository }}/.ccache
+            -e IDF_CCACHE_ENABLE=1
+          command: idf.py -B /tmp/presenter-build build
+
+      - name: Merge PC Controller presenter firmware binary
+        uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
+        with:
+          esp_idf_version: v5.5.3
+          target: esp32c3
+          command: |
+            idf.py -B /tmp/presenter-build merge-bin \
+              -o /tmp/presenter-build/FoloToy-AI-Passport-full.bin
+
+      - name: Verify merged firmware layout
+        uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
+        with:
+          esp_idf_version: v5.5.3
+          target: esp32c3
+          command: |
+            grep -E '^CONFIG_PC_CONTROLLER_APP=y' /tmp/presenter-build/sdkconfig
+            grep -E '^CONFIG_IDF_TARGET="esp32c3"' /tmp/presenter-build/sdkconfig
+            python3 tools/verify_firmware.py /tmp/presenter-build
+
+      - name: Upload PC Controller presenter firmware artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: presenter-firmware-${{ github.run_id }}
+          path: /tmp/presenter-build/FoloToy-AI-Passport-full.bin
+          if-no-files-found: error
+          retention-days: 7
