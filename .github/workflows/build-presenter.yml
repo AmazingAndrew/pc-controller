@@ -83,11 +83,21 @@ jobs:
 
       # SDKCONFIG_DEFAULTS 必须同时包含 sdkconfig.defaults(基础配置:
       # Flash 大小、分区表、bootloader、console、字体、FreeRTOS 等)和
-      # sdkconfig.presenter.link(presenter 档增量:Wi-Fi 关闭、
-      # NimBLE 安全设置、电源管理、字体再声明)。espressif/esp-idf-ci-action
-      # 用 bash -c '...' 包裹 command,内层单引号会被外层吃掉;改用双引号
-      # 包裹 SDKCONFIG_DEFAULTS 值即可在 bash 解析阶段保持分号字面意义,
-      # CMake 接到带分号的值后会自动按 ; 切分为多个 defaults 文件。
+      # sdkconfig.presenter.defaults(presenter 档增量:Wi-Fi 关闭、
+      # NimBLE 安全设置、电源管理、字体再声明)。
+      #
+      # Run #9 / Run #10 调试记录:仅在 Configure 步骤用
+      # `-D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.presenter.defaults"`
+      # 设进 CMake cache 不够 —— esp-idf-ci-action 每个 step 是独立 docker
+      # 容器,Build / Merge 步骤重新跑 cmake 时若 cache 没命中或被 invalidate,
+      # SDKCONFIG_DEFAULTS 就退回成空(只走 sdkconfig 默认值,等于只读
+      # sdkconfig.defaults),导致生成的 sdkconfig 不再带
+      # CONFIG_PC_CONTROLLER_APP=y,main/CMakeLists.txt 退回 demo 分支,
+      # 合并出来的固件 layout 不符合 presenter 档预期。
+      #
+      # 修复:Configure / Build / Merge 三步都通过 extra_docker_args 把
+      # SDKCONFIG_DEFAULTS 注入到容器环境变量,这样无论 cmake cache
+      # 状态如何,idf.py 启动时都能读到同一份分层 defaults。
 
       - name: Configure PC Controller presenter profile (ESP-IDF 5.5.3 / esp32c3)
         uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
@@ -97,11 +107,8 @@ jobs:
           extra_docker_args: >-
             -e CCACHE_DIR=/app/${{ github.repository }}/.ccache
             -e IDF_CCACHE_ENABLE=1
-          # 同时加载 sdkconfig.defaults 与 sdkconfig.presenter.defaults:
-          # 前者承担 Flash/分区表/bootloader/console/LVGL 颜色深度等通用
-          # 配置,后者叠加 presenter 档增量(Wi-Fi 关闭、NVS persist、字体
-          # 再声明等)。双引号保持分号不被 bash 当命令分隔符。
-          command: idf.py -B /tmp/presenter-build -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.presenter.defaults" set-target esp32c3
+            -e SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.presenter.defaults
+          command: idf.py -B /tmp/presenter-build set-target esp32c3
 
       - name: Build PC Controller presenter firmware
         uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
@@ -111,6 +118,7 @@ jobs:
           extra_docker_args: >-
             -e CCACHE_DIR=/app/${{ github.repository }}/.ccache
             -e IDF_CCACHE_ENABLE=1
+            -e SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.presenter.defaults
           command: idf.py -B /tmp/presenter-build build
 
       - name: Merge PC Controller presenter firmware binary
@@ -118,6 +126,10 @@ jobs:
         with:
           esp_idf_version: v5.5.3
           target: esp32c3
+          extra_docker_args: >-
+            -e CCACHE_DIR=/app/${{ github.repository }}/.ccache
+            -e IDF_CCACHE_ENABLE=1
+            -e SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.presenter.defaults
           command: idf.py -B /tmp/presenter-build merge-bin -o /tmp/presenter-build/FoloToy-AI-Passport-full.bin
 
       - name: Verify merged firmware layout
