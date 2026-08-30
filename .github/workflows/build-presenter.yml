@@ -86,7 +86,7 @@ jobs:
       # sdkconfig.presenter.defaults(presenter 档增量:Wi-Fi 关闭、
       # NimBLE 安全设置、电源管理、字体再声明)。
       #
-      # Run #9-#11 调试记录:
+      # Run #12 调试记录:
       #  #9   仅在 Configure 用 -D "SDKCONFIG_DEFAULTS=...;..." 设进
       #       CMake cache。Build / Merge 也成功,但生成的 sdkconfig
       #       不带 CONFIG_PC_CONTROLLER_APP=y → verify 失败。
@@ -97,13 +97,24 @@ jobs:
       #       注入到容器 env,Configure 步骤在 1s 内失败(exit 1),
       #       推测 docker -e 参数在多 -e 同时存在或 ; 在 value 中
       #       被 action 处理异常。
+      #  #12  改用 inline env prefix SDKCONFIG_DEFAULTS="..." 写在
+      #       command 字符串里。Configure / Build / Merge 三步都成功,
+      #       但 Verify 步骤仍然 exit 2,缺 CONFIG_PC_CONTROLLER_APP=y。
+      #       根因:每个 espressif/esp-idf-ci-action step 各自跑独立
+      #       docker 容器,/tmp/presenter-build 是容器内 tmpfs,前一个
+      #       step 退出会被销毁,后续 Verify 步骤看不到 build artifacts。
       #
-      # 修复:用 inline env prefix `SDKCONFIG_DEFAULTS="..."` 直接写在
-      # command 字符串里。bash -c '...' 不会重新展开外层单引号里的
-      # 双引号,SDKCONFIG_DEFAULTS 值(含 ;)会被原样保留并 export
-      # 到 idf.py 进程中。Configure 同步保留 -D 作 cmake cache 兜底,
-      # Build / Merge 只靠 env prefix。三步同一份分层 defaults,cmake
-      # 重新跑也不会丢 presenter 档增量。
+      # 修复:把 verify_presenter_build.py 调用合并到 Merge 步骤的
+      # 末尾,确保它和 idf.py merge-bin 跑在同一个 docker 容器内,直接
+      # 看到 /tmp/presenter-build 的 sdkconfig + merged.bin。
+      # 删掉单独的 Verify step,Merge 步骤失败 = verify 失败,
+      # 避免在跨容器情况下重蹈 #9-#12 覆辙。Upload artifact 步骤依赖
+      # Merge step 的输出,逻辑保持不变。
+      #
+      # Configure / Build / Merge 三步仍是独立 docker 容器,因此
+      # SDKCONFIG_DEFAULTS 必须在三步的 command 前都 export 一次,
+      # 否则 Build 步骤启动时 cmake 会重新生成 sdkconfig 而丢失
+      # sdkconfig.presenter.defaults 增量。
 
       - name: Configure PC Controller presenter profile (ESP-IDF 5.5.3 / esp32c3)
         uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
@@ -133,20 +144,12 @@ jobs:
           extra_docker_args: >-
             -e CCACHE_DIR=/app/${{ github.repository }}/.ccache
             -e IDF_CCACHE_ENABLE=1
-          command: SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.presenter.defaults" idf.py -B /tmp/presenter-build merge-bin -o /tmp/presenter-build/FoloToy-AI-Passport-full.bin
-
-      - name: Verify merged firmware layout
-        uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
-        with:
-          esp_idf_version: v5.5.3
-          target: esp32c3
-          # 用 Python 脚本一次性完成 profile 检查 + firmware layout 校验:
-          # 替换之前的 `grep && grep && python3` 单行命令。grep 链依赖 bash
-          # 引号处理,SDKCONFIG_DEFAULTS 分号被吃掉时整步返回 2 但没有 stderr
-          # 行,annotation 只显示 "Process completed with exit code 2",无法
-          # 定位是 grep 还是 verify_firmware.py 失败;新脚本会用 stderr
-          # 明确写出缺失的 sdkconfig 行或合并固件 layout 不一致原因。
-          command: python3 tools/verify_presenter_build.py /tmp/presenter-build
+          command: >
+            SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.presenter.defaults"
+            bash -c '
+            idf.py -B /tmp/presenter-build merge-bin -o /tmp/presenter-build/FoloToy-AI-Passport-full.bin &&
+            python3 tools/verify_presenter_build.py /tmp/presenter-build
+            '
 
       - name: Upload PC Controller presenter firmware artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
