@@ -28,6 +28,13 @@ run_static_checks() {
         tests/test_ui_pixel_math.c main/ui_pixel_math.c \
         -o "${test_dir}/test_ui_pixel_math"
     "${test_dir}/test_ui_pixel_math"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain tests/test_pc_key_semantics.c main/pc_key_semantics.c -o "${test_dir}/test_pc_key_semantics" && "${test_dir}/test_pc_key_semantics"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain tests/test_pc_app_fsm.c main/pc_app_fsm.c main/pc_hid_reports.c -o "${test_dir}/test_pc_app_fsm" && "${test_dir}/test_pc_app_fsm"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain tests/test_pc_hid_reports.c main/pc_hid_reports.c main/pc_host_profiles.c -o "${test_dir}/test_pc_hid_reports" && "${test_dir}/test_pc_hid_reports"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain tests/test_pc_host_profiles.c main/pc_host_profiles.c -o "${test_dir}/test_pc_host_profiles" && "${test_dir}/test_pc_host_profiles"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain tests/test_pc_slide_counter.c main/pc_slide_counter.c -o "${test_dir}/test_pc_slide_counter" && "${test_dir}/test_pc_slide_counter"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain tests/test_pc_speech_timer.c main/pc_speech_timer.c -o "${test_dir}/test_pc_speech_timer" && "${test_dir}/test_pc_speech_timer"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain tests/test_pc_power_fsm.c main/pc_power_fsm.c -o "${test_dir}/test_pc_power_fsm" && "${test_dir}/test_pc_power_fsm"
     python3 tests/test_verify_firmware.py
     rm -rf "${test_dir}"
     echo "Host tests: PASS"

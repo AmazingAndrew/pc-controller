@@ -6,6 +6,7 @@
 
 ## Unreleased
 
+- Add PC Controller (BLE HID presenter) application build profile with key semantics, FUI screens, and host tests.
 - Added PC Controller requirements specification and UI design documents.
 - Made mini-program BLE install compatibility a template-level invariant: fixed
   protected `cardid`/Recovery partitions, retained the five-second UP-key

@@ -1,0 +1,15 @@
+# Build-profile switch for the PC Controller (presenter) application.
+#
+# The presenter profile is selected by layering sdkconfig.presenter.defaults
+# (which sets CONFIG_PC_CONTROLLER_APP=y) on top of sdkconfig.defaults via
+# SDKCONFIG_DEFAULTS. The default demo profile never sets this symbol, so it
+# stays "n" there and main/CMakeLists.txt registers the unchanged default
+# source set. See docs/software-design/pc-controller/requirements.md §2.
+menu "PC Controller Application"
+    config PC_CONTROLLER_APP
+        bool "Build PC Controller (BLE HID presenter) application"
+        default n
+        help
+            Build the PC Controller application instead of the default demo
+            menu. See docs/software-design/pc-controller/requirements.md.
+endmenu

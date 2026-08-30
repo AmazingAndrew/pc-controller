@@ -6,6 +6,7 @@
 
 ## Unreleased
 
+- 新增 PC Controller（BLE HID 翻页遥控器）应用构建档，含按键语义、FUI 界面与 host 测试。
 - 新增 PC Controller 需求规格说明书与 UI 设计文档。
 - 将小程序 BLE 安装兼容提升为二创模板强制契约：固定保护 `cardid`/Recovery 分区，
   保留上键持续 5 秒进入 Recovery 的 bootloader hook，并在 CI 强制校验合并镜像结构、

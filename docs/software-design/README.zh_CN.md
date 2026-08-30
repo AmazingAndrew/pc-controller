@@ -23,5 +23,6 @@
 - [AGENTS.md](../../AGENTS.md)：仓库权威 AI 规范的入口与索引。
 - [PC Controller 需求规格说明书](pc-controller/requirements.zh_CN.md)：运行于 AI PASSPORT 主板的 PC Controller BLE HID 演示遥控器需求规格说明。
 - [PC Controller UI 设计](pc-controller/ui-design.zh_CN.md)：PC Controller 应用的 UI 设计，涵盖 FUI 赛博朋克 HUD 设计语言、布局、状态与渲染纪律。
+- [PC Controller 固件交付报告](pc-controller/delivery-report.zh_CN.md)：四段式（Build / Host tests / Device tests / Unverified）固件交付报告，覆盖 `feature/pc-controller` 分支，并附每项上板验收方法。
 
 > 注：`docs/software-design` 用于容纳软件设计文档。协作规范见 `docs/contribution/`，工程规范和 CI 说明见 `docs/development/`，fork 工作流见 `docs/fork-guide.md`；这些入口均由 `AGENTS.md` 索引。

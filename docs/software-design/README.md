@@ -15,3 +15,4 @@ The authoritative AI entry point is [AGENTS.md](../../AGENTS.md); collaboration 
 - [AGENTS.md](../../AGENTS.md): the authoritative AI specification entry and index for the repository.
 - [PC Controller requirements](pc-controller/requirements.md): requirements specification of the PC Controller BLE HID presentation remote running on the AI PASSPORT board.
 - [PC Controller UI design](pc-controller/ui-design.md): UI design of the PC Controller application, covering the FUI cyberpunk HUD design language, layout, states, and rendering discipline.
+- [PC Controller delivery report](pc-controller/delivery-report.md): four-field firmware delivery report (Build / Host tests / Device tests / Unverified) for the `feature/pc-controller` branch, with per-item on-board acceptance methods.

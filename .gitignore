@@ -4,3 +4,8 @@ sdkconfig.old
 managed_components/
 .vscode/
 .idea/
+
+# Python artifacts (D2: tools/__pycache__/ 已出现于工作区,
+# 重复运行 check_repo.py / verify_firmware.py 会产生,显式忽略)
+__pycache__/
+*.pyc
