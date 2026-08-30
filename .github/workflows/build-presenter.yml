@@ -125,7 +125,13 @@ jobs:
         with:
           esp_idf_version: v5.5.3
           target: esp32c3
-          command: grep -E "^CONFIG_PC_CONTROLLER_APP=y$" /tmp/presenter-build/sdkconfig && grep -E "^CONFIG_IDF_TARGET=\"esp32c3\"$" /tmp/presenter-build/sdkconfig && python3 tools/verify_firmware.py /tmp/presenter-build
+          # 用 Python 脚本一次性完成 profile 检查 + firmware layout 校验:
+          # 替换之前的 `grep && grep && python3` 单行命令。grep 链依赖 bash
+          # 引号处理,SDKCONFIG_DEFAULTS 分号被吃掉时整步返回 2 但没有 stderr
+          # 行,annotation 只显示 "Process completed with exit code 2",无法
+          # 定位是 grep 还是 verify_firmware.py 失败;新脚本会用 stderr
+          # 明确写出缺失的 sdkconfig 行或合并固件 layout 不一致原因。
+          command: python3 tools/verify_presenter_build.py /tmp/presenter-build
 
       - name: Upload PC Controller presenter firmware artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
