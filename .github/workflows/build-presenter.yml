@@ -144,12 +144,8 @@ jobs:
           extra_docker_args: >-
             -e CCACHE_DIR=/app/${{ github.repository }}/.ccache
             -e IDF_CCACHE_ENABLE=1
-          command: >
-            SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.presenter.defaults"
-            bash -c '
-            idf.py -B /tmp/presenter-build merge-bin -o /tmp/presenter-build/FoloToy-AI-Passport-full.bin &&
-            python3 tools/verify_presenter_build.py /tmp/presenter-build
-            '
+          command: >-
+            SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.presenter.defaults" sh -c "idf.py -B /tmp/presenter-build merge-bin -o /tmp/presenter-build/FoloToy-AI-Passport-full.bin && python3 tools/verify_presenter_build.py /tmp/presenter-build"
 
       - name: Upload PC Controller presenter firmware artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
