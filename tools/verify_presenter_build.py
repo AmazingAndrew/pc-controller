@@ -25,14 +25,26 @@ REQUIRED_SDKCONFIG_LINES = (
 
 def check_sdkconfig(sdkconfig_path: Path) -> list[str]:
     """Return a list of human-readable errors; empty list means PASS."""
+    print(f"verify_presenter_build: reading sdkconfig from {sdkconfig_path}", file=sys.stderr)
     if not sdkconfig_path.is_file():
         return [f"sdkconfig not found at {sdkconfig_path}"]
 
     text = sdkconfig_path.read_text(encoding="utf-8", errors="replace")
+    print(
+        f"verify_presenter_build: sdkconfig size = {len(text)} bytes",
+        file=sys.stderr,
+    )
     errors: list[str] = []
     for label, pattern in REQUIRED_SDKCONFIG_LINES:
         if not re.search(pattern, text, re.MULTILINE):
             errors.append(f"sdkconfig is missing required line: {label}")
+            similar = [
+                line
+                for line in text.splitlines()
+                if label.split("=")[0] in line or "esp32" in line.lower()
+            ][:5]
+            for hit in similar:
+                print(f"verify_presenter_build: similar line: {hit!r}", file=sys.stderr)
     return errors
 
 
