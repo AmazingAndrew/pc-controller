@@ -81,8 +81,13 @@ jobs:
             build-presenter-ccache-${{ github.ref_type }}-${{ github.ref_name }}-
             build-presenter-ccache-
 
-      - name: Prepare presenter sdkconfig symlink
-        run: ln -sf sdkconfig.presenter.defaults sdkconfig.presenter.link
+      # SDKCONFIG_DEFAULTS 必须同时包含 sdkconfig.defaults(基础配置:
+      # Flash 大小、分区表、bootloader、console、字体、FreeRTOS 等)和
+      # sdkconfig.presenter.link(presenter 档增量:Wi-Fi 关闭、
+      # NimBLE 安全设置、电源管理、字体再声明)。espressif/esp-idf-ci-action
+      # 用 bash -c '...' 包裹 command,内层单引号会被外层吃掉;改用双引号
+      # 包裹 SDKCONFIG_DEFAULTS 值即可在 bash 解析阶段保持分号字面意义,
+      # CMake 接到带分号的值后会自动按 ; 切分为多个 defaults 文件。
 
       - name: Configure PC Controller presenter profile (ESP-IDF 5.5.3 / esp32c3)
         uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
@@ -92,7 +97,11 @@ jobs:
           extra_docker_args: >-
             -e CCACHE_DIR=/app/${{ github.repository }}/.ccache
             -e IDF_CCACHE_ENABLE=1
-          command: idf.py -B /tmp/presenter-build -D SDKCONFIG_DEFAULTS=sdkconfig.presenter.link set-target esp32c3
+          # 同时加载 sdkconfig.defaults 与 sdkconfig.presenter.defaults:
+          # 前者承担 Flash/分区表/bootloader/console/LVGL 颜色深度等通用
+          # 配置,后者叠加 presenter 档增量(Wi-Fi 关闭、NVS persist、字体
+          # 再声明等)。双引号保持分号不被 bash 当命令分隔符。
+          command: idf.py -B /tmp/presenter-build -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.presenter.defaults" set-target esp32c3
 
       - name: Build PC Controller presenter firmware
         uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
