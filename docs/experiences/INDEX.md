@@ -28,4 +28,4 @@ rather than merged into an existing one.
 
 ### AmazingAndrew
 
-- [CI Build Pitfalls: From Dual sdkconfig to Upstream Simplicity](amazingandrew/ci-pitfalls.md) — eight concrete CI failures (executable bit, CMake list format, `espressif/esp-idf-ci-action` quoting and multi-line parsing, symlinks, ESP-IDF v5.5.3 / GCC 14 / LVGL v9 API drift) and the case for matching the upstream `validate.sh --firmware` pattern.
+- [CI Build Pitfalls: From Dual sdkconfig to Upstream Simplicity](AmazingAndrew/ci-pitfalls.md) — eight concrete CI failures (executable bit, CMake list format, `espressif/esp-idf-ci-action` quoting and multi-line parsing, symlinks, ESP-IDF v5.5.3 / GCC 14 / LVGL v9 API drift) and the case for matching the upstream `validate.sh --firmware` pattern.

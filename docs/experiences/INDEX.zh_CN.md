@@ -22,4 +22,4 @@
 
 ### AmazingAndrew
 
-- [CI 构建踩坑：从双 sdkconfig 回归上游简洁模式](amazingandrew/ci-pitfalls.zh_CN.md) — 8 个具体 CI 失败点（可执行权限位、CMake 列表格式、`espressif/esp-idf-ci-action` 引号与多行解析、symlink、ESP-IDF v5.5.3 / GCC 14 / LVGL v9 API 漂移），以及对齐上游 `validate.sh --firmware` 模式的复盘。
+- [CI 构建踩坑：从双 sdkconfig 回归上游简洁模式](AmazingAndrew/ci-pitfalls.zh_CN.md) — 8 个具体 CI 失败点（可执行权限位、CMake 列表格式、`espressif/esp-idf-ci-action` 引号与多行解析、symlink、ESP-IDF v5.5.3 / GCC 14 / LVGL v9 API 漂移），以及对齐上游 `validate.sh --firmware` 模式的复盘。
