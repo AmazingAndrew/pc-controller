@@ -1,34 +1,45 @@
 #!/bin/sh
 # Build, merge and verify the PC Controller presenter firmware.
 #
-# Run #15 failed in 1m29s when this whole pipeline was expressed as a long
-# YAML string with several layers of escaping. Hard-coding it as a shell
-# script keeps the SDKCONFIG_DEFAULTS layering, the idf.py commands, and
-# the verify_presenter_build.py check readable and free of GitHub Actions
-# quoting issues. The workflow's `command:` is reduced to
-# `bash tools/build_presenter_firmware.sh` which keeps the outer
-# `bash -c '...'` wrapper trivial.
-#
 # This script must be invoked from the repository root inside the
 # espressif/esp-idf-ci-action Docker image so that idf.py, python3 and
 # the host project are all available.
+#
+# SDKCONFIG_DEFAULTS strategy:
+#   ESP-IDF's kconfig treats SDKCONFIG_DEFAULTS as a single ;-separated
+#   list of files (a CMake list), but inside esp-idf-ci-action's
+#   `bash -c '...'` wrapper, layer-by-layer attempts to spell
+#   `SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.presenter.defaults"`
+#   have lost the semicolon or one of the two files in every iteration
+#   (Runs #9 - #16). Run #9 and earlier proved that a single-file
+#   SDKCONFIG_DEFAULTS=sdkconfig.presenter.link works as long as that
+#   file is self-contained; sdkconfig.presenter.defaults already is (see
+#   its own header comment), so the symlink approach removes the quoting
+#   surface entirely and CMake processes a single file name.
 
 set -eu
 
 BUILD_DIR=${BUILD_DIR:-/tmp/presenter-build}
 MERGED_BIN="$BUILD_DIR/FoloToy-AI-Passport-full.bin"
-SDKCONFIG_DEFAULTS_VALUE="sdkconfig.defaults;sdkconfig.presenter.defaults"
-export SDKCONFIG_DEFAULTS="$SDKCONFIG_DEFAULTS_VALUE"
+
+# 0. Make sure sdkconfig.presenter.link is a symlink to the self-contained
+#    presenter defaults file. `ln -sf` is idempotent: if the link already
+#    exists and points at the right target, it is left alone; otherwise it
+#    is recreated. This must happen before any idf.py call so that
+#    SDKCONFIG_DEFAULTS=sdkconfig.presenter.link resolves correctly.
+ln -sf sdkconfig.presenter.defaults sdkconfig.presenter.link
+
+# Pass SDKCONFIG_DEFAULTS as both env var and -D CMake flag to be defensive
+# against any future action version that strips inline env prefixes.
+export SDKCONFIG_DEFAULTS=sdkconfig.presenter.link
 
 echo "[build_presenter_firmware] BUILD_DIR=$BUILD_DIR"
 echo "[build_presenter_firmware] SDKCONFIG_DEFAULTS=$SDKCONFIG_DEFAULTS"
 
 # 1. set-target populates the build directory and the sdkconfig file from
-#    the layered SDKCONFIG_DEFAULTS. CMake's -D mirrors the env var into
-#    the cache as a defensive fallback in case the env var is ever
-#    stripped by the action's docker run layer.
+#    the symlinked presenter defaults.
 idf.py -B "$BUILD_DIR" \
-    -D "SDKCONFIG_DEFAULTS=$SDKCONFIG_DEFAULTS_VALUE" \
+    -D SDKCONFIG_DEFAULTS=sdkconfig.presenter.link \
     set-target esp32c3
 
 # 2. Compile the application. Re-running on the same BUILD_DIR is a no-op
