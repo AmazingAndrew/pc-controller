@@ -89,10 +89,7 @@ jobs:
           extra_docker_args: >-
             -e CCACHE_DIR=/app/${{ github.repository }}/.ccache
             -e IDF_CCACHE_ENABLE=1
-          command: |
-            idf.py -B /tmp/presenter-build \
-              -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.presenter.defaults' \
-              set-target esp32c3
+          command: idf.py -B /tmp/presenter-build -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.presenter.defaults' set-target esp32c3
 
       - name: Build PC Controller presenter firmware
         uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
@@ -109,19 +106,14 @@ jobs:
         with:
           esp_idf_version: v5.5.3
           target: esp32c3
-          command: |
-            idf.py -B /tmp/presenter-build merge-bin \
-              -o /tmp/presenter-build/FoloToy-AI-Passport-full.bin
+          command: idf.py -B /tmp/presenter-build merge-bin -o /tmp/presenter-build/FoloToy-AI-Passport-full.bin
 
       - name: Verify merged firmware layout
         uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
         with:
           esp_idf_version: v5.5.3
           target: esp32c3
-          command: |
-            grep -E '^CONFIG_PC_CONTROLLER_APP=y' /tmp/presenter-build/sdkconfig
-            grep -E '^CONFIG_IDF_TARGET="esp32c3"' /tmp/presenter-build/sdkconfig
-            python3 tools/verify_firmware.py /tmp/presenter-build
+          command: grep -E '^CONFIG_PC_CONTROLLER_APP=y' /tmp/presenter-build/sdkconfig && grep -E '^CONFIG_IDF_TARGET="esp32c3"' /tmp/presenter-build/sdkconfig && python3 tools/verify_firmware.py /tmp/presenter-build
 
       - name: Upload PC Controller presenter firmware artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
