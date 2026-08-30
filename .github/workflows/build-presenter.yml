@@ -117,10 +117,21 @@ jobs:
       #       与 Configure/Build 步骤生成的 sdkconfig 行为不一致,最终
       #       verify 拿到的 sdkconfig 缺 PC_CONTROLLER_APP=y。
       #
-      # 修复:把 set-target / build / merge-bin / verify 全部塞进同一个
-      # esp-idf-ci-action step,让它们在同一个 docker 容器中共享 /tmp。
-      # verify_presenter_build.py 同时增加 stderr 诊断输出,后续调试
-      # 能在 GitHub Action log 里直接看到 sdkconfig 实际内容。
+      # Run #15 调试记录:
+      #  #14  sh -c "..." 单容器版 Merge step 27s 失败。
+      #  #15  set-target + build + merge-bin + verify 链式 + 单容器版
+      #       step 在 1m29s 失败。短于完整 set-target+build+merge 时间,
+      #       说明链中命令提前退出,或 YAML 长字符串多转义导致 set-target
+      #       失败,但 annotations 只给 "Process completed with exit code 2",
+      #       无法定位具体哪一段命令。
+      #
+      # 修复:把 set-target / build / merge-bin / verify 全部封装到
+      # tools/build_presenter_firmware.sh,workflow 的 command 只剩
+      # 一行 `bash tools/build_presenter_firmware.sh`,彻底避开 YAML
+      # 多层引号和外层 bash -c '...' 包装带来的字符层不确定性。脚本
+      # 自带 set -eu、单条 SDKCONFIG_DEFAULTS 赋值、以及 stderr 上的
+      # 阶段输出,任何中间命令退出都会冒到 workflow log,verify 失败
+      # 也会先打出 sdkconfig 路径 / 大小 / 相似行。
 
       - name: Build, merge and verify PC Controller presenter firmware
         uses: espressif/esp-idf-ci-action@9d38657f3d789ca759b2b37aaf5ceffbc42c4f0d # v1
@@ -130,7 +141,7 @@ jobs:
           extra_docker_args: >-
             -e CCACHE_DIR=/app/${{ github.repository }}/.ccache
             -e IDF_CCACHE_ENABLE=1
-          command: SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.presenter.defaults" sh -c "idf.py -B /tmp/presenter-build -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.presenter.defaults' set-target esp32c3 && idf.py -B /tmp/presenter-build build && idf.py -B /tmp/presenter-build merge-bin -o /tmp/presenter-build/FoloToy-AI-Passport-full.bin && python3 tools/verify_presenter_build.py /tmp/presenter-build"
+          command: bash tools/build_presenter_firmware.sh
 
       - name: Upload PC Controller presenter firmware artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
