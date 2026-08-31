@@ -2,6 +2,11 @@
   <a href="README.zh_CN.md">简体中文</a> · <strong>English</strong>
 </p>
 
+<p align="center">
+  <a href="https://github.com/AmazingAndrew/pc-controller/actions/workflows/build-presenter.yml"><img src="https://github.com/AmazingAndrew/pc-controller/actions/workflows/build-presenter.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/AmazingAndrew/pc-controller/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+</p>
+
 # PC Controller for FoloToy AI Passport
 
 Turn your AI PASSPORT board into a BLE HID presentation remote with a cyberpunk FUI HUD interface.

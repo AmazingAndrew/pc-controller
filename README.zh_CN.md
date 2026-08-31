@@ -2,6 +2,11 @@
   <strong>简体中文</strong> · <a href="README.md">English</a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/AmazingAndrew/pc-controller/actions/workflows/build-presenter.yml"><img src="https://github.com/AmazingAndrew/pc-controller/actions/workflows/build-presenter.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/AmazingAndrew/pc-controller/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+</p>
+
 # PC Controller — FoloToy AI Passport 固件
 
 将 AI PASSPORT 板卡变成 BLE HID 演示遥控器，搭配赛博朋克 FUI HUD 界面。
