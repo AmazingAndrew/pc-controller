@@ -32,10 +32,12 @@
 | [software-design/README.zh_CN.md](./software-design/README.zh_CN.md) | 软件设计索引 | 参考 | 软件设计文档子目录骨架 |
 | [software-design/pc-controller/requirements.zh_CN.md](./software-design/pc-controller/requirements.zh_CN.md) | 软件设计 | 参考 | PC Controller 需求规格说明书 |
 | [software-design/pc-controller/ui-design.zh_CN.md](./software-design/pc-controller/ui-design.zh_CN.md) | 软件设计 | 参考 | PC Controller UI 设计 |
+| [software-design/pc-controller/delivery-report.zh_CN.md](./software-design/pc-controller/delivery-report.zh_CN.md) | 软件设计 | 参考 | PC Controller 交付报告 |
 | [hardware-design/README.zh_CN.md](./hardware-design/README.zh_CN.md) | 硬件设计索引 | 参考 | 硬件设计文档子目录骨架 |
 | [hardware-design/AI_HARDWARE_DEVELOPMENT_GUIDE.zh_CN.md](./hardware-design/AI_HARDWARE_DEVELOPMENT_GUIDE.zh_CN.md) | 硬件指南 | authoritative | 完整硬件开发指南与排障参考（上游） |
 | [hardware-design/specifications.zh_CN.md](./hardware-design/specifications.zh_CN.md) | 产品规格 | authoritative | 产品规格（尺寸、重量、电池、充电、NFC、按键等对外口径） |
 | [../plays/INDEX.zh_CN.md](../plays/INDEX.zh_CN.md) | plays 应用档案索引 | 参考 | `plays/` 下已归档应用的发现表 |
+| [../README.zh_CN.md](../README.zh_CN.md) | PC Controller fork 入口 | 参考 | PC Controller fork 仓库根 README |
 
 ## GitHub 社区治理文档
 

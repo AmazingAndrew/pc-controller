@@ -34,6 +34,8 @@ Use this page to discover repository documentation. `authoritative` documents de
 | [software-design/README.md](software-design/README.md) | Software-design document index | reference |
 | [software-design/pc-controller/requirements.md](software-design/pc-controller/requirements.md) | PC Controller requirements specification | reference |
 | [software-design/pc-controller/ui-design.md](software-design/pc-controller/ui-design.md) | PC Controller UI design | reference |
+| [software-design/pc-controller/delivery-report.md](software-design/pc-controller/delivery-report.md) | PC Controller delivery report | reference |
 | [../plays/INDEX.md](../plays/INDEX.md) | Index of archived applications in `plays/` | reference |
+| [../README.md](../README.md) | PC Controller fork entry point | reference |
 
 GitHub community documents: [CONTRIBUTING.md](../.github/CONTRIBUTING.md), [CODE_OF_CONDUCT.md](../.github/CODE_OF_CONDUCT.md), [SECURITY.md](../.github/SECURITY.md), and [SUPPORT.md](../.github/SUPPORT.md).
