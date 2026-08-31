@@ -68,6 +68,39 @@ idf.py -p PORT flash
 
 或使用 [WebSerial 烧录工具](https://ai-passport.folotoy.cn/tools/web-flasher/)。
 
+## 固件安装与刷机
+
+完整刷机指南请参考[无线安装玩法指南](https://ai-passport.folotoy.cn/guides/wireless-install-plays/)。
+
+### 首次初始化（USB 完整恢复）
+
+1. 通过 USB-C 线将开发板连接电脑
+2. 打开 [Chrome/Edge 浏览器刷机工具](https://ai-passport.folotoy.cn/tools/web-flasher/)
+3. 刷入合并镜像：`build/FoloToy-AI-Passport-full.bin`
+4. 等待"恢复默认固件"流程完成
+
+> 合并镜像包含 bootloader + 分区表 + 应用固件 + 保护分区占位。
+
+### 无线刷机（微信小程序下发）
+
+首次初始化完成后，可通过蓝牙无线安装新玩法固件，无需 USB：
+
+1. 关闭设备电源
+2. 同时按住**电源键 + 上键**约 5 秒，进入"系统升级模式"（Recovery Mode）
+3. 屏幕显示 6 位配对验证码
+4. 打开微信小程序，通过蓝牙连接设备并输入验证码
+5. 新固件自动下载并刷入
+
+### 开发调试刷机
+
+仅用于迭代开发：
+
+```bash
+idf.py -p PORT flash monitor
+```
+
+> 注意：此方式仅刷入应用二进制文件。正式使用或小程序兼容场景请使用合并镜像 `full.bin`。
+
 ## 首次开机
 
 1. 上电 → STANDBY 待机屏

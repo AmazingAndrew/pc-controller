@@ -68,6 +68,39 @@ idf.py -p PORT flash
 
 Or use the [WebSerial flasher](https://ai-passport.folotoy.cn/tools/web-flasher/).
 
+## Firmware Installation
+
+For the complete flashing guide, refer to the [Wireless Install Plays Guide](https://ai-passport.folotoy.cn/guides/wireless-install-plays/).
+
+### First-Time Setup (USB Recovery)
+
+1. Connect the board to your computer via USB-C
+2. Open [Chrome/Edge browser flasher](https://ai-passport.folotoy.cn/tools/web-flasher/)
+3. Flash the merged firmware image: `build/FoloToy-AI-Passport-full.bin`
+4. Wait for the "Restore Default Firmware" process to complete
+
+> The merged image includes bootloader + partition table + application + protected partition placeholders.
+
+### Wireless Update (WeChat Mini Program)
+
+After first-time initialization, you can install new firmware wirelessly via BLE:
+
+1. Power off the device
+2. Hold **Power button + UP button** for ~5 seconds to enter Recovery Mode
+3. The screen displays a 6-digit pairing code
+4. Open the WeChat mini program and connect via BLE using the displayed code
+5. The new firmware is downloaded and flashed automatically
+
+### Development Flashing
+
+For iterative development only:
+
+```bash
+idf.py -p PORT flash monitor
+```
+
+> Note: This flashes the app-only binary. Use the merged `full.bin` for production or mini-program compatibility.
+
 ## First Boot
 
 1. Power on → STANDBY screen
