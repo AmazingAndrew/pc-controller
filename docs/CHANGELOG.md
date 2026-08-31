@@ -6,6 +6,7 @@
 
 ## Unreleased
 
+- Sync docs/development/project-completion.md from upstream; rename after-release.md → project-completion.md.
 - Added fork root `README.md` / `README.zh_CN.md` entry point for PC Controller presenter firmware.
 - Add PC Controller (BLE HID presenter) application build profile with key semantics, FUI screens, and host tests.
 - Added PC Controller requirements specification and UI design documents.

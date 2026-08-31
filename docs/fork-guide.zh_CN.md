@@ -41,6 +41,8 @@ sdkconfig.defaults            ESP32-C3、USB console、Flash、LVGL 默认配置
 
 fork 后，`main` 分支**只允许增加/修改根目录的 `README.md` 和 `docs/assets/` 目录**（可建自己的说明/README 变体），**不允许改其它任何文件**——这样 fork 的 `main` 与上游保持最新同步、不产生冲突。任何其它修改（固件功能、文档规整等）一律在 `feature/*` 分支进行，用 PR 合并。
 
+**在启动新项目之前，应从与 FoloToy/ai-passport:main 保持同步的基线上创建 feature/* 分支。** 使用最新的上游 main 作为分支起点（例如先 fetch upstream 再从 upstream/main 分支），而非 fork 自身的 main — fork main 可能已过时或无法同步。这确保每个新项目基于当前上游基线，避免基于过时或已分叉的 fork main。
+
 ### 为什么根目录不放置 README
 
 **根目录的 `README.md` 是预留给开发者自行放置的，因此上游留空**：
@@ -65,4 +67,4 @@ fork 后，`main` 分支**只允许增加/修改根目录的 `README.md` 和 `do
 fork，放在 `docs/assets/` 下，不提交回上游。通用、上游也受益的文档或经验改进——持续的硬件事实、
 可复用的接口、能帮助任何 AI Passport 用户的构建或发布流程改进——作为 PR 提交回上游。
 `plays/` 应用档案与发布后的经验沉淀属于上游，作为 PR 提案回上游。发布后的工作请用
-`experience-pr` 与 `plays-archive` skill，见 `docs/development/after-release.md`。
+`experience-pr` 与 `plays-archive` skill，见 `docs/development/project-completion.md`。
