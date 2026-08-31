@@ -6,8 +6,7 @@
 
 Turn your AI PASSPORT board into a BLE HID presentation remote with a cyberpunk FUI HUD interface.
 
-<!-- Screenshot placeholder -->
-![PC Controller FUI HUD](docs/assets/pc-controller/screenshot.png)
+<!-- TODO: Add FUI HUD screenshot at docs/assets/pc-controller/screenshot.png -->
 
 ## Features
 

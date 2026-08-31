@@ -6,8 +6,7 @@
 
 将 AI PASSPORT 板卡变成 BLE HID 演示遥控器，搭配赛博朋克 FUI HUD 界面。
 
-<!-- 截图占位 -->
-![PC Controller FUI HUD](docs/assets/pc-controller/screenshot.png)
+<!-- TODO: 添加 FUI HUD 截图至 docs/assets/pc-controller/screenshot.png -->
 
 ## 功能特性
 

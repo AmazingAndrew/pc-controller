@@ -119,8 +119,8 @@ static void emit(pc_ble_hid_evt_t ev, uint32_t arg)
 /* NVS 前置准备:与 demo_radio_nvs_prepare()(demo_radio.c 行 14-26)
  * 同模式——初始化失败仅记日志,绝不擦分区(分区里可能有未来应用
  * 已保存的数据,也可能是同分区共存的其它命名空间)。
- * 重复一份而非直接调用,是因为 presenter 档的 main/CMakeLists.txt
- * 不编译 demo_radio.c(presenter 分支只注册 pc_*.c)。 */
+ * 重复一份而非直接调用,是为了让 presenter 在不依赖 demo_radio.c
+ * 调用顺序的前提下也能安全初始化 NVS。 */
 static esp_err_t nvs_prepare_no_erase(void)
 {
     static bool nvs_ready;

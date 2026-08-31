@@ -7,9 +7,9 @@
 # source set. See docs/software-design/pc-controller/requirements.md §2.
 menu "PC Controller Application"
     config PC_CONTROLLER_APP
-        bool "Build PC Controller (BLE HID presenter) application"
-        default n
+        bool "PC Controller (BLE HID presenter) application"
+        default y
         help
-            Build the PC Controller application instead of the default demo
-            menu. See docs/software-design/pc-controller/requirements.md.
+            Build the PC Controller BLE HID presenter firmware instead of
+            the default demo application.
 endmenu

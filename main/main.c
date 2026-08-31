@@ -103,6 +103,7 @@ static void on_key(bsp_btn_t btn, bsp_btn_ev_t ev, void *user) {
     bsp_lvgl_unlock();
 }
 
+#ifndef CONFIG_PC_CONTROLLER_APP
 void app_main(void) {
     ESP_LOGI(TAG, "FoloToy AI Passport BSP demo 启动");
     esp_sleep_wakeup_cause_t wakeup = esp_sleep_get_wakeup_cause();
@@ -137,3 +138,4 @@ void app_main(void) {
     ESP_LOGI(TAG, "就绪:Display=%d Button=%d Audio=%d Battery=%d",
              s_ok[0], s_ok[1], s_ok[2], s_ok[3]);
 }
+#endif /* !CONFIG_PC_CONTROLLER_APP */
