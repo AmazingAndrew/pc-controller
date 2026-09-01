@@ -40,8 +40,11 @@
 static lv_obj_t *s_timer;    /* 计时数字标签 */
 static lv_obj_t *s_slide;    /* 页码标签 */
 static lv_obj_t *s_link_val; /* 面板 3 链路值标签 */
+static lv_obj_t *s_status_word; /* 面板 1 计时状态词 ("RUN" / "PAUSED",
+                                * 任务 #47; 退页清空) */
 static lv_timer_t *s_lost_blink; /* LOST 闪烁定时器(断链时起) */
 static bool s_blink_phase;   /* 闪烁相位 */
+static bool s_paused;        /* 任务 #47: 计时器暂停状态(用于还原现场) */
 
 /* ---- 退页钩子 ---- */
 
@@ -54,6 +57,7 @@ static void present_leave(void)
     s_timer = NULL;
     s_slide = NULL;
     s_link_val = NULL;
+    s_status_word = NULL;
     pc_fui_set_leave_cb(NULL);
 }
 
@@ -94,6 +98,20 @@ static void apply_link(bool connected)
     }
 }
 
+/* ---- 计时状态词(任务 #47: RUN <-> PAUSED) ----
+ * 仅改状态词标签文本, 脏区 = 标签矩形 (1-4 KB/s, 远低于 §5
+ * 预算)。颜色与文字同步: RUN = 青色, PAUSED = 告警黄 (PANEL_GLOW
+ * 橙色亮度更接近 "暂停警示" 语义)。 */
+
+static void apply_paused(bool paused)
+{
+    if (s_status_word == NULL) return;
+    s_paused = paused;
+    lv_label_set_text(s_status_word, paused ? "PAUSED" : "RUN");
+    lv_obj_set_style_text_color(s_status_word,
+        lv_color_hex(paused ? PC_FUI_C_GLOW : PC_FUI_C_LABEL), 0);
+}
+
 /* ---- 建屏 ---- */
 
 lv_obj_t *pc_ui_present_build(void)
@@ -125,11 +143,13 @@ lv_obj_t *pc_ui_present_build(void)
     lv_obj_t *p1 = pc_fui_panel_create(scr, 220, 84, "SPEECH TIMER");
     lv_obj_set_pos(p1, PC_FUI_SAFE, 80);
 
-    /* 标签行右侧状态词 "RUN"(青色)。 */
-    lv_obj_t *run = pc_fui_label(p1, "RUN", &lv_font_unscii_8,
+    /* 标签行右侧状态词 (任务 #47): 默认 "RUN" (青色)。
+     * 句柄 s_status_word 暴露给 pc_ui_present_set_paused(), 用
+     * 于 OK 长按切换为 "PAUSED" (告警黄)。 */
+    s_status_word = pc_fui_label(p1, "RUN", &lv_font_unscii_8,
                                  lv_color_hex(PC_FUI_C_LABEL));
-    lv_obj_align(run, LV_ALIGN_TOP_MID, 88, 7);
-    (void)run;
+    lv_obj_align(s_status_word, LV_ALIGN_TOP_MID, 88, 7);
+    s_paused = false;
 
     /* 计时数字:青色发光大字,水平居中。
      * >>> 36px 像素字体待许可核验后替换,见 requirements §15;
@@ -228,4 +248,12 @@ void pc_ui_present_set_link(bool connected, const char *host)
 void pc_ui_present_set_battery(int percent)
 {
     pc_fui_set_battery(percent);
+}
+
+/* 任务 #47: 计时状态词切换。
+ * 仅在 PRESENT 页在屏时由组装层调用 (其他页应降级不调);
+ * 退页后 s_status_word 为 NULL, 内部防御式判空。 */
+void pc_ui_present_set_paused(bool paused)
+{
+    apply_paused(paused);
 }

@@ -408,7 +408,18 @@ static const struct ble_gatt_svc_def s_svcs[] = {
 /* 广播                                                                */
 /* ------------------------------------------------------------------ */
 
-/* 通用可发现广播(配对/回连,规格 §5 输出与 §10 降级链的第二段)。 */
+/* 通用可发现广播(配对/回连,规格 §5 输出与 §10 降级链的第二段)。
+ * 任务 #52: 在广播数据中追加 16-bit HID Service UUID (0x1812)
+ * 完整列表, 让部分 BLE 扫描器 (Windows 默认扫描器、Linux
+ * bluetoothctl 等) 能按服务类型过滤本设备, 加快首屏 "PC Controller"
+ * 出现 + 准确分组 (HID 类别下)。完整列表 (uuids16_is_complete=1)
+ * 是双选择: 第一种是列表本身只有一条 0x1812, 没有必要用 "more
+ * 16-bit UUIDs available" 的非完整列表 (后者会增加扫描器解析成本);
+ * 第二种是与设备 GATT 服务表严格一致 (本设备只有 0x1812 一种 16-bit
+ * 服务, 见下方的 gatt_svr_svcs)。
+ * 备注: NimBLE 0x1812 = Human Interface Device (HID over GATT 规范,
+ * Assigned Numbers §3.1); host 主机的扫描器看到完整 UUID 列表后,
+ * 本设备会被归到 "Input Device" 类别, 与 HOGP 主机侧路由逻辑一致。 */
 static int adv_general_locked(void)
 {
     struct ble_hs_adv_fields fields = { 0 };
@@ -418,6 +429,15 @@ static int adv_general_locked(void)
     fields.name_is_complete = 1;
     fields.appearance = PC_APPEARANCE_GENERIC_HID;
     fields.appearance_is_present = 1;
+    /* 任务 #52: 16-bit HID Service UUID (0x1812) 完整列表。
+     * 注: NimBLE 本版本未提供 BLE_HS_ADV_UUID_16_HID_SERVICE 便捷
+     * 宏 (该宏位于 host/util/util.h, 部分 fork 版本未覆盖), 这里
+     * 用裸常量 0x1812 并加注释说明 (与 s_svcs[0] 的 HID Service
+     * 一致,见文件上方 GATT 表)。 */
+    static const uint16_t s_hid_uuid = 0x1812;
+    fields.uuids16 = &s_hid_uuid;
+    fields.num_uuids16 = 1;
+    fields.uuids16_is_complete = 1;
 
     int rc = ble_gap_adv_set_fields(&fields);
     if (rc != 0) return rc;

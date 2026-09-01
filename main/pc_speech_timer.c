@@ -7,11 +7,13 @@
 #include <stddef.h>
 #include <stdio.h>
 
-/* 显示上限:999 分 59 秒 = 60059 秒。
- * 依据:屏显缓冲固定 8 字节,"MMM:SS" + '\0' 恰好 7 + 1 = 8 字节,
- * 四位分钟装不下;演讲超过 16.7 小时无显示意义,直接钳制
- * (依据与取舍见头文件注释)。 */
-#define PC_SPEECH_DISPLAY_MAX_SEC 60059U
+/* 显示上限:99:59:59 = 359999 秒(任务 #47 自适应格式后)。
+ * 依据:屏显缓冲固定 9 字节,"HH:MM:SS" + '\0' 恰好 8 + 1 = 9 字节;
+ * 演讲超过 100 小时无显示意义,直接钳制。 */
+#define PC_SPEECH_DISPLAY_MAX_SEC 359999U
+
+/* 1 小时秒数,任务 #47 HH:MM:SS 格式阈值。 */
+#define PC_SPEECH_HOUR_SEC 3600U
 
 void pc_speech_reset(pc_speech_timer_t *t)
 {
@@ -19,11 +21,19 @@ void pc_speech_reset(pc_speech_timer_t *t)
         return;
     }
     t->sec = 0U;
+    /* 任务 #47:进入演示模式 (TIMER_RESET) 一并解除暂停,
+     * 避免上次残留 paused=true 状态导致新一轮演示不计数。 */
+    t->paused = false;
 }
 
 void pc_speech_tick(pc_speech_timer_t *t)
 {
     if (t == NULL) {
+        return;
+    }
+    /* 任务 #47:暂停期间 tick 为无效操作, 保持 sec 不变;
+     * 这样 1 Hz 定时源不需要感知暂停状态, 由本模块内部仲裁。 */
+    if (t->paused) {
         return;
     }
     /* 自然自增;32 位秒数理论 136 年回绕,不做饱和。 */
@@ -35,10 +45,24 @@ uint32_t pc_speech_seconds(const pc_speech_timer_t *t)
     return t != NULL ? t->sec : 0U;
 }
 
-void pc_speech_format(const pc_speech_timer_t *t, char out[8])
+bool pc_speech_is_paused(const pc_speech_timer_t *t)
+{
+    return (t != NULL) && t->paused;
+}
+
+void pc_speech_set_paused(pc_speech_timer_t *t, bool paused)
+{
+    if (t == NULL) {
+        return;
+    }
+    t->paused = paused;
+}
+
+void pc_speech_format(const pc_speech_timer_t *t, char out[9])
 {
     uint32_t sec;
-    unsigned min;
+    unsigned h;
+    unsigned m;
     unsigned s;
 
     if (out == NULL) {
@@ -57,15 +81,19 @@ void pc_speech_format(const pc_speech_timer_t *t, char out[8])
 
     /* 钳制到显示上限(见文件头宏注释)。 */
     sec = t->sec <= PC_SPEECH_DISPLAY_MAX_SEC ? t->sec : PC_SPEECH_DISPLAY_MAX_SEC;
-    min = (unsigned)(sec / 60U);
-    s = (unsigned)(sec % 60U);
 
-    if (min <= 99U) {
-        /* "MM:SS":两位分钟左侧补零(00:00 .. 99:59)。 */
-        snprintf(out, 8, "%02u:%02u", min, s);
+    if (sec < PC_SPEECH_HOUR_SEC) {
+        /* "MM:SS":两位分钟左侧补零(00:00 .. 59:59)。 */
+        m = sec / 60U;
+        s = sec % 60U;
+        snprintf(out, 9, "%02u:%02u", m, s);
     } else {
-        /* "MMM:SS":三位分钟不再补零(100:00 .. 999:59),
-         * 7 字符 + '\0' 恰好 8 字节。 */
-        snprintf(out, 8, "%u:%02u", min, s);
+        /* "HH:MM:SS":满 1 小时后切换为带小时格式(任务 #47)。
+         * 小时位上限 99 (与显示上限 99:59:59 一致), 两位左侧补零;
+         * 8 字符 + '\0' = 9 字节, 与缓冲容量严格对齐。 */
+        h = sec / 3600U;
+        m = (sec % 3600U) / 60U;
+        s = sec % 60U;
+        snprintf(out, 9, "%02u:%02u:%02u", h, m, s);
     }
 }

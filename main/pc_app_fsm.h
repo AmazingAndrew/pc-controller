@@ -58,6 +58,10 @@ typedef enum {
                                  * 通用 2 min,规格 §10),无参数。 */
     PC_FX_ENTER_MEDIA,          /* 进入媒体模式(供组装层做模式切换
                                  * 的附加动作,如音效),无参数。 */
+    PC_FX_TIMER_TOGGLE,        /* 任务 #47: 切换演讲计时器暂停/恢复。
+                                 * 组装层据此调用 pc_speech_set_paused
+                                 * 翻转暂停位, 并把 PAUSED 指示同步到 UI;
+                                 * 不修改状态机状态, 不发任何 HID 帧。 */
 } pc_fx_t;
 
 /* 单个 effect。联合体按 type 选用成员:

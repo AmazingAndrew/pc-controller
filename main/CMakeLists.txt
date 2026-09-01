@@ -40,6 +40,7 @@ idf_component_register(
          "pc_power_mgr.c"
          "pc_beep.c"
          "pc_strings.c"
+         "pc_screenshot.c"
     INCLUDE_DIRS "."
-    REQUIRES bsp bt nvs_flash esp_timer esp_hw_support esp_event esp_netif esp_wifi
+    REQUIRES bsp bt nvs_flash esp_timer esp_hw_support esp_event esp_netif esp_wifi driver
 )

@@ -51,6 +51,7 @@
 #include "pc_host_profiles.h"
 #include "pc_key_semantics.h"
 #include "pc_power_mgr.h"
+#include "pc_screenshot.h"
 #include "pc_slide_counter.h"
 #include "pc_speech_timer.h"
 #include "pc_storage.h"
@@ -522,10 +523,13 @@ static void run_effects(const pc_effect_t *fx, int n)
             break;
 
         case PC_FX_TIMER_RESET:
-            /* FR-05:进入演示模式计时清零 */
+            /* FR-05:进入演示模式计时清零 + 解除暂停 (任务 #47)。 */
             pc_speech_reset(&s_speech);
             if (ui_lock()) {
                 pc_ui_set_timer("00:00");
+                /* 复位 UI 计时状态词为 RUN; 若退演示后再进入,
+                 * 暂停状态已被 pc_speech_reset 清掉, UI 同步恢复。 */
+                pc_ui_present_set_paused(false);
                 ui_unlock();
             }
             break;
@@ -617,6 +621,23 @@ static void run_effects(const pc_effect_t *fx, int n)
              * 按键音已在 handle_key 分发点统一播放,不在此重复。 */
             if (ui_lock()) {
                 pc_ui_set_volume((int)s_volume);
+                ui_unlock();
+            }
+            break;
+
+        case PC_FX_TIMER_TOGGLE:
+            /* 任务 #47: 切换演讲计时器暂停/恢复。
+             *   1. 翻转 pc_speech_timer_t.paused;
+             *   2. 把 "PAUSED" / "RUN" 状态词推给演示页 (UI 局部
+             *      脏区, 1-4 KB/s 不超预算);
+             *   3. 不发任何 HID 帧 (本动作纯展示);
+             *   4. 不响按键音 (规格 §1/FR-09: 仅用户语义动作响音;
+             *      暂停切换属 UI 反馈而非应用语义)。
+             * 线程上下文: 应用任务。 */
+            pc_speech_set_paused(&s_speech,
+                                 !pc_speech_is_paused(&s_speech));
+            if (ui_lock()) {
+                pc_ui_present_set_paused(pc_speech_is_paused(&s_speech));
                 ui_unlock();
             }
             break;
@@ -813,7 +834,7 @@ static void handle_tick(void)
      * 闸门从入队侧移到本处理函数,使 1 Hz 事件可顺带驱动电源)。 */
     if (s_present_active) {
         pc_speech_tick(&s_speech);
-        char buf[8];
+        char buf[9]; /* 任务 #47: 缓冲 9 字节以容纳 "HH:MM:SS"。 */
         pc_speech_format(&s_speech, buf);
         if (ui_lock()) {
             pc_ui_set_timer(buf);
@@ -972,6 +993,18 @@ static void on_menu_confirm_apply(pc_action_t act)
         }
         break;
 
+    case 9: /* #46 SCREENSHOT:触发一次串口截屏。
+             * 状态机对项 9 不吐 effect(纯展示触发),业务在本函数:
+             *   - pc_screenshot_capture() 内部按 LVGL 锁抓取并按
+             *     8 行分块通过 USB Serial/JTAG 推出去,失败仅日志;
+             *   - 给一个 1.5 s 反馈页提示用户"截屏已发出";
+             *   - 截屏是异步于 USB 传输的(分块写出期间 UI 仍可响
+             *     应),反馈页定时器与 USB 写出重叠不影响。
+             * 线程上下文:应用任务(非 LVGL);截图内部自行持锁。 */
+        pc_screenshot_capture();
+        ui_feedback(pc_str_en[PC_STR_MENU_SCREENSHOT], "");
+        break;
+
     default:
         /* 其它菜单项(0/1/2/6)业务在 FSM 或 effect 层处理。 */
         break;
@@ -1127,6 +1160,12 @@ void app_main(void)
     /* 7. BLE HOGP:失败 -> 无线功能整体降级,其余路径照跑。 */
     s_ble_ok = (pc_ble_hid_init(on_ble_evt, NULL) == ESP_OK);
     if (!s_ble_ok) ESP_LOGE(TAG, "BLE HID init failed; radio degraded");
+
+    /* 7.5 串口截屏模块 (#46): 仅占位初始化 (注册日志 tag);
+     * 截屏在菜单第 9 项触发。依赖 USB Serial/JTAG 控制台通道,
+     * 该通道在 sdkconfig.defaults 已启用 (CONFIG_ESP_CONSOLE_
+     * USB_SERIAL_JTAG=y)。 */
+    pc_screenshot_start();
 
     /* 8. FSM 初始化:无绑定首启直接进配对(规格 §1/FR-07)。 */
     bool any_bond = pc_any_slot_bound();

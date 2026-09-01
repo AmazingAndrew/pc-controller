@@ -11,12 +11,13 @@
 
 #include "pc_hid_reports.h" /* PC_KEY_* 键码常量(HID 翻页/全屏键) */
 
-/* 待机菜单项数量。规格 §6(行 135)8 项 + #42 新增第 9 项 RESET BLE,
- * 顺序固定:
+/* 待机菜单项数量。规格 §6(行 135)8 项 + #42 新增第 9 项 RESET BLE +
+ * #46 新增第 10 项 SCREENSHOT,顺序固定:
  *   0 PAIRING、1 CLEAR SLOT、2 SLOT、3 HOST PROFILE、
  *   4 KEY SOUND、5 BACKLIGHT、6 MEDIA MODE、7 ABOUT、
- *   8 RESET BLE(两步式确认,本里程碑新增)。 */
-#define PC_MENU_COUNT 9
+ *   8 RESET BLE(两步式确认,本里程碑新增)、
+ *   9 SCREENSHOT(任务 #46,串口截屏触发)。 */
+#define PC_MENU_COUNT 10
 
 /* 设备槽位数量。规格 §1:三个设备槽位,串行切换
  * (受 MAX_CONNECTIONS=1 约束)。 */
@@ -162,6 +163,10 @@ static void menu_confirm(pc_fsm_t *f, pc_fx_buf_t *b)
              * 状态机不吐 effect(on_menu_confirm_apply 在调用
              * pc_fsm_on_action 之后根据 menu_sel == 8 自行处理
              * 武装/执行)。 */
+    case 9: /* #46 SCREENSHOT:状态机不吐 effect,组装层在
+             * on_menu_confirm_apply 中按 menu_sel == 9 触发
+             * pc_screenshot_capture(),本档保持零 effect 让业务层
+             * 按菜单项索引判别即可。 */
     default:
         break;
     }
@@ -332,6 +337,20 @@ int pc_fsm_on_action(pc_fsm_t *f, pc_action_t a, bool ble_connected, pc_effect_t
                 fx_push(&b, PC_FX_PAGE_EXIT_FULLSCREEN);
                 f->fullscreen = false;
             }
+        }
+        break;
+
+    case PC_ACT_TIMER_TOGGLE:
+        /* 任务 #47: 演示模式 OK 长按切换计时暂停/恢复。
+         * 状态机本身不持有"暂停位", 暂停状态由 pc_speech_timer_t
+         * (组装层持有) 跟踪; 状态机仅吐一个语义 effect, 让组装层
+         * 调 pc_speech_set_paused() 翻转暂停位并同步 UI 的
+         * "PAUSED" 指示。
+         * 该 action 不修改状态机状态, 不影响全屏记忆位 (timer 与
+         * fullscreen 正交); 退出 PRESENT 仍由断连或配对路径触发
+         * (规格 §6)。 */
+        if (f->state == PC_ST_PRESENT) {
+            fx_push(&b, PC_FX_TIMER_TOGGLE);
         }
         break;
 

@@ -91,22 +91,22 @@ int main(void)
     assert(fx[0].type == PC_FX_SLOT_SWITCH);
     assert(fx[0].arg.slot == 0);
 
-    /* ======== 菜单导航:9 项回绕 0..8(规格 §6 行 135 + #42 新增 RESET BLE) ======== */
+    /* ======== 菜单导航:10 项回绕 0..9(规格 §6 行 135 + #42 RESET BLE + #46 SCREENSHOT) ======== */
     pc_fsm_init(&f, true, 0);
     pc_fsm_on_action(&f, PC_ACT_MENU_OPEN, true, fx, FX_CAP);
     assert(f.menu_sel == 0);
-    /* DOWN 导航 9 次:0->1->...->8->0(回绕)。 */
-    for (int i = 1; i <= 9; i++) {
+    /* DOWN 导航 10 次:0->1->...->9->0(回绕)。 */
+    for (int i = 1; i <= 10; i++) {
         n = pc_fsm_on_action(&f, PC_ACT_MENU_NEXT, true, fx, FX_CAP);
         assert(n == 0);
-        assert(f.menu_sel == (uint8_t)(i % 9));
+        assert(f.menu_sel == (uint8_t)(i % 10));
     }
-    /* UP 导航:0->8(反向回绕)。 */
+    /* UP 导航:0->9(反向回绕)。 */
     n = pc_fsm_on_action(&f, PC_ACT_MENU_PREV, true, fx, FX_CAP);
     assert(n == 0);
-    assert(f.menu_sel == 8);
+    assert(f.menu_sel == 9);
 
-    /* ======== 菜单确认分发(规格 §6 行 135 的 8 项 + #42 项 8) ======== */
+    /* ======== 菜单确认分发(规格 §6 行 135 的 8 项 + #42 项 8 + #46 项 9) ======== */
 
     /* 项 0 (1) PAIRING -> 进配对 + START_PAIR(转移表行 5)。 */
     pc_fsm_init(&f, true, 0);
@@ -175,8 +175,37 @@ int main(void)
     assert(n == 0);
     assert(f.state == PC_ST_STANDBY_MENU);
 
+    /* 项 9 (10) #46 SCREENSHOT -> 状态机不吐 effect(组装层
+     * on_menu_confirm_apply 按 menu_sel==9 自行调 pc_screenshot_capture)。 */
+    pc_fsm_init(&f, true, 0);
+    pc_fsm_on_action(&f, PC_ACT_MENU_OPEN, true, fx, FX_CAP);
+    f.menu_sel = 9;
+    n = pc_fsm_on_action(&f, PC_ACT_MENU_CONFIRM, true, fx, FX_CAP);
+    assert(n == 0);
+    assert(f.state == PC_ST_STANDBY_MENU);
+
     /* 转移表行 6:菜单长按 -> 待机主页。 */
     n = pc_fsm_on_action(&f, PC_ACT_MENU_EXIT, true, fx, FX_CAP);
+    assert(n == 0);
+    assert(f.state == PC_ST_STANDBY_HOME);
+
+    /* ======== 演示模式:OK 长按切换计时器暂停/恢复(任务 #47) ========
+     * 状态机不修改自身状态, 仅吐 1 个 PC_FX_TIMER_TOGGLE effect;
+     * 暂停位的真存在组装层持有的 pc_speech_timer_t.paused 上,
+     * 由 PC_FX_TIMER_TOGGLE 触发 pc_speech_set_paused() 翻转。 */
+    pc_fsm_init(&f, true, 0);
+    pc_fsm_on_action(&f, PC_ACT_ENTER_PRESENT, true, fx, FX_CAP);
+    n = pc_fsm_on_action(&f, PC_ACT_TIMER_TOGGLE, true, fx, FX_CAP);
+    assert(n == 1);
+    assert(fx[0].type == PC_FX_TIMER_TOGGLE);
+    assert(f.state == PC_ST_PRESENT); /* 状态未变, 仍处于演示 */
+    /* 再次 toggle -> 仍吐 1 effect。 */
+    n = pc_fsm_on_action(&f, PC_ACT_TIMER_TOGGLE, true, fx, FX_CAP);
+    assert(n == 1);
+    assert(fx[0].type == PC_FX_TIMER_TOGGLE);
+    /* 非演示状态下 TIMER_TOGGLE 无效。 */
+    pc_fsm_init(&f, true, 0);
+    n = pc_fsm_on_action(&f, PC_ACT_TIMER_TOGGLE, true, fx, FX_CAP);
     assert(n == 0);
     assert(f.state == PC_ST_STANDBY_HOME);
 

@@ -39,6 +39,7 @@ const char *const pc_str_en[PC_STR_COUNT] = {
     "MEDIA MODE",      /* PC_STR_MENU_MEDIA_MODE:菜单项 6 */
     "ABOUT",           /* PC_STR_MENU_ABOUT:菜单项 7 */
     "RESET BLE",       /* PC_STR_MENU_RESET_BLE:菜单项 8,#42 两步式重置 */
+    "SCREENSHOT",      /* PC_STR_MENU_SCREENSHOT:菜单项 9,#46 串口截屏 */
 
     /* ---- 配置取值词 ---- */
     "ON",              /* PC_STR_VALUE_ON:开关类配置"开" */

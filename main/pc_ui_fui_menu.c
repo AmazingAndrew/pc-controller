@@ -1,14 +1,15 @@
 // main/pc_ui_fui_menu.c
-// FUI 待机菜单页 —— 8 项列表,数据驱动,不含业务逻辑。
+// FUI 待机菜单页 —— 10 项列表,数据驱动,不含业务逻辑。
 //
 // 页面规格对照:ui-design §4.1(menu 段):
-//   - 待机主页经 UP 键进入的独立 8 项列表页;
+//   - 待机主页经 UP 键进入的独立 10 项列表页;
 //   - 选中项高亮 = 橙底黑字(橙 = PANEL_GLOW);
 //   - OK 短按进入/确认所选;OK 长按返回待机主页(交互语义属
 //     组装层/状态机,本页只负责呈现选中项)。
-// 菜单 8 项与顺序(规格 §6 行 135,与字符串表逐条对应):
+// 菜单 10 项与顺序(规格 §6 行 135 + #42 + #46):
 //   0 PAIRING、1 CLEAR SLOT、2 SLOT、3 HOST PROFILE、
-//   4 KEY SOUND、5 BACKLIGHT、6 MEDIA MODE、7 ABOUT。
+//   4 KEY SOUND、5 BACKLIGHT、6 MEDIA MODE、7 ABOUT、
+//   8 RESET BLE(#42)、9 SCREENSHOT(#46 串口截屏触发)。
 //
 // 选中项数据通路:选中索引由组装层状态机持有
 // (pc_fsm_t.menu_sel);组装层在按键处理后经
@@ -32,15 +33,19 @@
 
 /* ---- 布局常量 ---- */
 
-/* 9 项(规格 §6 行 135 原有 8 项 + #42 新增 RESET BLE),8×27=216 仍
- * 刚好铺满内容区;9×27=243,顶部起点 -3 px 即可。 */
-#define MENU_ITEMS  9
-#define MENU_ROW_H  27    /* 行高:9×27 = 243,首行 y 微调以贴顶栏缝 */
-#define MENU_TOP    37    /* 首行 y(顶栏 32 之下 5 px 缝,容纳 9 行) */
+/* 10 项(规格 §6 行 135 原有 8 项 + #42 RESET BLE + #46 SCREENSHOT):
+ * 内容区 32-296 = 264 px, 10 行需要 264/10 = 26.4 px, 取 26 px 行高
+ * (向下取整保证不溢出)。每行 (MENU_ROW_H - 2) = 24 px 实际行高, 留
+ * 2 px 行间距。 顶部起点 MENU_TOP = 33, 10 行总占用 = 33 + 10*26
+ * = 293 px, 仍落在 footer 296 之上;与原 9 项 9*27=243 px 同一布局
+ * 框架, 视觉一致。 */
+#define MENU_ITEMS  10
+#define MENU_ROW_H  26    /* 行高:10*26 = 260,顶部起点 33,总 293<296 */
+#define MENU_TOP    33    /* 首行 y(顶栏 32 之下 1 px 缝,容纳 10 行) */
 #define MENU_LEFT   10    /* 10 px 安全边距 */
 #define MENU_W      220   /* 240 - 2×10 */
 
-/* 9 项文案:直接取字符串表,索引与枚举一一对应(表项顺序即
+/* 10 项文案:直接取字符串表,索引与枚举一一对应(表项顺序即
  * 菜单顺序,见 pc_strings.h 注释)。 */
 static const pc_str_t s_items[MENU_ITEMS] = {
     PC_STR_MENU_PAIRING,
@@ -52,6 +57,7 @@ static const pc_str_t s_items[MENU_ITEMS] = {
     PC_STR_MENU_MEDIA_MODE,
     PC_STR_MENU_ABOUT,
     PC_STR_MENU_RESET_BLE,
+    PC_STR_MENU_SCREENSHOT,
 };
 
 /* ---- 文件内状态 ---- */

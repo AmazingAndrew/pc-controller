@@ -40,6 +40,13 @@ CONFIG_LV_FONT_MONTSERRAT_20=y
 # 百分比、底栏键名、角标等位置,主档文档中多处以 lv_font_unscii_8
 # 作为 placeholder)。只有 presenter 档需要,默认 demo 不启。
 CONFIG_LV_FONT_UNSCII_8=y
+# 启用 LVGL snapshot API (任务 #46 串口截屏依赖):
+#   lv_snapshot_take() / lv_draw_buf_destroy();
+# 启用后 LVGL 内部会按需分配/释放 draw_buf (240×320×2 ≈ 153 KB)。
+# 关闭后任务 #46 的快照路径在编译期被排除 (#if LV_USE_SNAPSHOT
+# 包围),保留 SDK 中调用可直接编译进 #error 块;此处开启
+# 以保证 sdkconfig 升级时的可选性。
+CONFIG_LV_USE_SNAPSHOT=y
 # LVGL 内置 malloc 池大小(KB)。它是独立静态区、不与系统堆共享,配大了会白白占用 RAM。
 # 演示档使用 24KB 足够；PC Controller (presenter) HUD/动画/状态切换较多，扩到 32KB。
 # 若自建复杂界面出现绘制卡死/看门狗,继续调大此值,但要注意无 PSRAM 的 C3 内存预算。

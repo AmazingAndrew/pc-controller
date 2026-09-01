@@ -47,8 +47,9 @@ esp_err_t pc_ui_init(void);
 void pc_ui_show_state(pc_state_t st);
 
 /* 刷新演讲计时器读数。
- * 参数:text "MM:SS" 格式(pc_speech_format 的输出,<= 8 字符)。
- * 仅演示页有该区域;其它页调用被忽略(降级)。 */
+ * 参数:text "MM:SS" / "HH:MM:SS" 自适应格式 (pc_speech_format 的
+ *       输出, <= 9 字符)。仅演示页有该区域; 其它页调用被忽略
+ *       (降级)。 */
 void pc_ui_set_timer(const char *text);
 
 /* 刷新页码读数(本地估算,规格 §1/FR-12)。
@@ -88,7 +89,8 @@ void pc_ui_show_feedback(const char *title, const char *detail);
 /* ---- M2 追加接口(既有 8 接口签名未动) ---- */
 
 /* 刷新菜单选中项高亮(仅菜单页在屏时生效;其它页忽略)。
- * 参数:sel 选中项索引 0..7(规格 §6 行 135 的 8 项菜单);
+ * 参数:sel 选中项索引 0..9(10 项菜单:8 项规格 + #42 RESET BLE +
+ *       #46 SCREENSHOT);
  *       越界值按 0 处理(防御式)。仅局部重绘新旧两行高亮,
  *       不重建整页(渲染纪律:脏区刷新,ui-design §5)。 */
 void pc_ui_set_menu_sel(int sel);

@@ -81,6 +81,7 @@ typedef enum {
     PC_ACT_PAGE_NEXT,         /* 演示模式:下一页(注意:UP 键 = 下一页) */
     PC_ACT_PAGE_PREV,         /* 演示模式:上一页(注意:DOWN 键 = 上一页) */
     PC_ACT_FULLSCREEN_TOGGLE, /* 演示模式:全屏切换(记忆式翻转,见规格 §6) */
+    PC_ACT_TIMER_TOGGLE,      /* 演示模式:OK 长按切换计时暂停/恢复(任务 #47) */
     PC_ACT_LOCK,              /* 一键锁屏(仅待机主页可直达,规格 §1/FR-03) */
     PC_ACT_VOL_UP,            /* 媒体模式:音量 + */
     PC_ACT_VOL_DOWN,          /* 媒体模式:音量 - */

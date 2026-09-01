@@ -91,13 +91,26 @@ static void start_searching_anim(void)
 
 /* 链路三态刷新(§4.1 state variants):
  *   连接   -> 状态字 "CONNECTED",大字 = 主机名,灯条常亮;
- *   未连接 -> 状态字 "SEARCHING"(规格变体含 "DISCONNECTED" 过渡
- *             态;组装层的重连广播链在断连后立即启动,页面稳态
- *             按搜索中呈现),大字 "PLEASE WAIT",灯条渐进填充。 */
+ *   未连接 -> 状态字 "DISCONNECTED"(任务 #51:稳态呈现,
+ *             不再以"SEARCHING"循环灯条动画诱导用户等待),
+ *             大字 "PLEASE WAIT",灯条熄灭。
+ *
+ * 任务 #51 设计决策:
+ *   - 旧版以 "SEARCHING" + 灯条渐进填充动画表示"正在回连/正在配对",
+ *     暗示设备持续尝试连接;但连接建立与否取决于主机侧(进入配对模式
+ *     后等待主机发起),设备侧在等待期间一直 "搜索" 与现实不符;
+ *   - 新版改为稳态 "DISCONNECTED":灯条熄灭, 大字保留
+ *     "PLEASE WAIT" 提示用户此时去主机侧操作;
+ *   - 何时重新 "搜索" 动画 = 何时进入配对模式 (有向/通用广播打开),
+ *     那是配对页 (PC_ST_PAIR) 的职责,不在 STANDBY 页里表现。
+ *   - 进入/退出配对模式由组装层推 (状态机吐 PC_FX_START_PAIR /
+ *     PC_FX_STOP_PAIR),与本页"状态字刷新"独立。 */
 static void apply_link(bool connected, const char *host)
 {
     if (s_status_word == NULL) return;
 
+    /* 任务 #51: 不论连接与否,先停掉旧动画,避免"闪烁动画残留"
+     * 跨状态泄漏。PC_FUI_LAMP_OFF 是稳态终态。 */
     lv_anim_delete(s_lamp, NULL);
     if (connected) {
         lv_label_set_text(s_status_word,
@@ -106,10 +119,11 @@ static void apply_link(bool connected, const char *host)
                           (host != NULL && host[0] != '\0') ? host : "HOST");
         pc_fui_lamp_paint(s_lamp, PC_FUI_LAMP_ORANGE); /* 常亮 */
     } else {
-        lv_label_set_text(s_status_word, "SEARCHING");
+        /* 任务 #51: 稳态 DISCONNECTED, 不起搜索动画, 灯条熄灭。 */
+        lv_label_set_text(s_status_word,
+                          pc_str_en[PC_STR_STATUS_DISCONNECTED]);
         lv_label_set_text(s_big, "PLEASE WAIT");
         pc_fui_lamp_paint(s_lamp, PC_FUI_LAMP_OFF);
-        start_searching_anim();
     }
 
     /* 底栏 OK 动作词:已连接 = 进演示,未连接 = 进配对(图例走

@@ -47,7 +47,7 @@ static pc_page_t s_page = PC_PAGE_STANDBY;
 static pc_state_t s_state = PC_ST_STANDBY_HOME;
 
 /* ---- 读数缓存(页面重建时还原现场) ---- */
-static char s_timer[8] = "00:00"; /* "MM:SS" */
+static char s_timer[9] = "00:00"; /* "MM:SS" 或 "HH:MM:SS" (任务 #47) */
 static char s_host[17];           /* 已连接主机显示名 */
 static bool s_link;               /* 连接状态 */
 static int s_battery = -1;        /* -1 = 不可用(§8 降级) */
@@ -165,6 +165,9 @@ void pc_ui_show_state(pc_state_t st)
 void pc_ui_set_timer(const char *text)
 {
     if (text == NULL) return;
+    /* 任务 #47:缓冲 9 字节以容纳 "HH:MM:SS" 自适应格式;
+     * 旧版 8 字节缓冲在 >= 1 小时会被截断 (snprintf 截尾),
+     * 这里扩容后兼容 "MM:SS" / "HH:MM:SS" 两种格式。 */
     lv_snprintf(s_timer, sizeof(s_timer), "%s", text);
     if (s_page == PC_PAGE_PRESENT) {
         pc_ui_present_set_timer(s_timer); /* 仅数字矩形重绘 */

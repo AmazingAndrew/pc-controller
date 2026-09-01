@@ -51,6 +51,7 @@ typedef enum {
     PC_STR_MENU_MEDIA_MODE,   /* 菜单项 6:进入媒体模式 */
     PC_STR_MENU_ABOUT,        /* 菜单项 7:关于页 */
     PC_STR_MENU_RESET_BLE,    /* 菜单项 8:#42 RESET BLE,两步式重置 */
+    PC_STR_MENU_SCREENSHOT,   /* 菜单项 9:#46 串口截屏 (FAP_SCREENSHOT_V1) */
 
     /* ---- 配置取值词 ---- */
     PC_STR_VALUE_ON,  /* 开 */

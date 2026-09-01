@@ -90,9 +90,14 @@ pc_action_t pc_key_map(pc_state_t st, pc_btn_t btn, pc_btn_ev_t ev, bool ble_con
          *   UP   CLICK -> 下一页(注意方向:UP = next page)
          *   DOWN CLICK -> 上一页
          *   OK   CLICK -> 全屏切换(F5 / Esc 交替,记忆式)
-         *   OK   LONG  -> 回到待机
+         *   OK   LONG  -> 切换计时暂停/恢复(任务 #47;原语义为
+         *                退出演示模式,现已迁移到 MEDIA 态/菜单
+         *                以外的 RETURN_TO_STANDBY 路径)
          * 锁定屏与音量在演示模式被禁用(规格 §1 非目标第 3 条),
-         * 因此不存在其它有效组合。 */
+         * 因此不存在其它有效组合。
+         * 注意:OK 长按退出演示模式的原语义已被 TIMER_TOGGLE 替
+         * 代;演示页退出现在只通过断连 (FSM 收到 DISCONNECT) 或
+         * 配对进入流程退出。 */
         switch (btn) {
         case PC_BTN_UP:
             return ev == PC_EV_CLICK ? PC_ACT_PAGE_NEXT : PC_ACT_NONE;
@@ -103,7 +108,7 @@ pc_action_t pc_key_map(pc_state_t st, pc_btn_t btn, pc_btn_ev_t ev, bool ble_con
                 return PC_ACT_FULLSCREEN_TOGGLE;
             }
             if (ev == PC_EV_LONG) {
-                return PC_ACT_EXIT_TO_STANDBY;
+                return PC_ACT_TIMER_TOGGLE;
             }
             return PC_ACT_NONE;
         default:

@@ -29,7 +29,8 @@ bool pc_ui_cache_link(char *host_out, int cap);
 /* 电量缓存:0..100;-1 = 不可用(§8 降级语义)。 */
 int pc_ui_cache_battery(void);
 
-/* 计时缓存:"MM:SS" 静态缓冲指针(生命周期 = 运行期)。 */
+/* 计时缓存:"MM:SS" / "HH:MM:SS" 自适应格式静态缓冲指针
+ * (任务 #47; 生命周期 = 运行期)。 */
 const char *pc_ui_cache_timer(void);
 
 /* 页码缓存:>= 1 显示;< 1 不画(规格 §1/FR-12)。 */
@@ -58,6 +59,7 @@ void pc_ui_present_set_timer(const char *text);
 void pc_ui_present_set_slide(int page);
 void pc_ui_present_set_link(bool connected, const char *host);
 void pc_ui_present_set_battery(int percent);
+void pc_ui_present_set_paused(bool paused); /* 任务 #47: PAUSED/RUN 状态词 */
 
 /* ---- 配对页(§4.3;实现见 pc_ui_fui_pair.c) ---- */
 lv_obj_t *pc_ui_pair_build(void);
