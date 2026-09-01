@@ -38,6 +38,7 @@ const char *const pc_str_en[PC_STR_COUNT] = {
     "BACKLIGHT",       /* PC_STR_MENU_BACKLIGHT:菜单项 5 */
     "MEDIA MODE",      /* PC_STR_MENU_MEDIA_MODE:菜单项 6 */
     "ABOUT",           /* PC_STR_MENU_ABOUT:菜单项 7 */
+    "RESET BLE",       /* PC_STR_MENU_RESET_BLE:菜单项 8,#42 两步式重置 */
 
     /* ---- 配置取值词 ---- */
     "ON",              /* PC_STR_VALUE_ON:开关类配置"开" */
@@ -58,6 +59,8 @@ const char *const pc_str_en[PC_STR_COUNT] = {
     "SLOT CLEARED",    /* PC_STR_FB_SLOT_CLEARED:槽位绑定已清除 */
     "SAVED",           /* PC_STR_FB_SAVED:配置已写入 */
     "PASSKEY",         /* PC_STR_FB_PASSKEY:配对码标签(后跟 6 位数字) */
+    "ARMED",           /* PC_STR_FB_RESET_ARM:#42 BLE 重置已武装 */
+    "RESETTING",       /* PC_STR_FB_RESET_CONFIRM:#42 二次确认后短暂反馈 */
 
     /* ---- 关于页 ---- */
     "PC CONTROLLER",   /* PC_STR_ABOUT_APP:应用名 */

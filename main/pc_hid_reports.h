@@ -47,6 +47,14 @@
 /* Escape(退出全屏,与 F5 交替发送,规格 §1/FR-02)。 */
 #define PC_KEY_ESC 0x29
 
+/* Enter/Return(键盘 Keypad Enter,macOS PowerPoint 进入全屏
+ * 组合键 Cmd+Shift+Enter 的键码成员,#57)。 */
+#define PC_KEY_RETURN 0x28
+
+/* 字母 P(macOS Keynote 进入全屏组合键 Option+Cmd+P 的键码成员,
+ * #57)。 */
+#define PC_KEY_P 0x13
+
 /* 字母 L(Lock 组合键成员:Windows/Linux 的 Win/Super + L)。 */
 #define PC_KEY_L 0x0F
 

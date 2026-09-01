@@ -70,12 +70,30 @@ esp_err_t pc_ble_hid_start_adv_general(void);
 
 /* 启动对指定地址的定向广播(槽位回连/重配对,规格 §10:
  * 断连后先定向 30 s)。
- * 参数:addr 6 字节对端身份地址(槽位元数据中的绑定地址)。
- * 地址类型说明:定向广播需要地址类型;槽位元数据只持久化 6 字节
- * 地址(规格 §8),故本模块优先使用最近一次连接记录到的对端身份
- * 地址类型,无记录时按 BLE_ADDR_PUBLIC 处理——已知局限,见 .c 注释。
+ * 参数:
+ *   addr      6 字节对端身份地址(槽位元数据中的绑定地址)。
+ *   addr_type 地址类型(与 NimBLE ble_addr_t.type 同构);
+ *             与槽位元数据的 addr_type 一致(#54)。
+ * 背景:历史实现按 public 处理,遇到 macOS 等随机地址主机时定向
+ *       广播被静默丢弃,30 s 后退到通用广播——本次起接受调用方
+ *       提供真实地址类型,保证定向广播可达。
  * 返回值:同上。 */
-esp_err_t pc_ble_hid_start_adv_directed(const uint8_t addr[6]);
+esp_err_t pc_ble_hid_start_adv_directed(const uint8_t addr[6], uint8_t addr_type);
+
+/* 删除 NimBLE 对端绑定记录(#55:槽位清除时联动)。
+ * 实现内部走 ble_gap_unpair():从控制器的 resolve list 移除对端,
+ * 从 ble_store 删掉所有 LTK / IRK / CSRK 等长期 key。
+ * 参数:
+ *   addr      6 字节对端身份地址(可全 0,表示按未提供地址处理;
+ *             当前实现以传入值为准,调用方需确保为有效已绑定地址)。
+ *   addr_type 地址类型(与 NimBLE ble_addr_t.type 同构)。
+ * 返回值:
+ *   ESP_OK                       删除成功,或本地无对应绑定(已不存在);
+ *   ESP_ERR_INVALID_STATE        BLE 未初始化;
+ *   其余                          NimBLE 错误码透传。
+ * 线程上下文:应用任务(NimBLE host 任务上下文也可,但当前仅由
+ *            pc_storage.c 的 pc_slot_clear 调用);非阻塞。 */
+esp_err_t pc_ble_hid_clear_bond(const uint8_t addr[6], uint8_t addr_type);
 
 /* 停止广播(退出配对页/配对成功后调用;连接建立后广播自动停止)。
  * 返回值:ESP_OK;未初始化返回 ESP_ERR_INVALID_STATE。 */
@@ -127,6 +145,11 @@ esp_err_t pc_ble_hid_graceful_disconnect(void);
  *   ESP_ERR_INVALID_STATE 尚无任何连接记录。
  * 线程上下文:应用任务;无阻塞。 */
 esp_err_t pc_ble_hid_peer_addr(uint8_t out[6]);
+
+/* 取最近一次成功连接的对端地址类型(#54:组装层在配对成功时
+ * 写入槽位元数据,与 addr 配对)。无记录时返回 0 (=BLE_ADDR_PUBLIC)。
+ * 线程上下文:任意(只读静态变量);无阻塞。 */
+uint8_t pc_ble_hid_peer_addr_type(void);
 
 /* 停止整个 BLE 栈(优雅断连 -> 停广播 -> nimble_port_stop +
  * 信号量等待 -> deinit,与 demo_ble.c 的停止路径同构)。

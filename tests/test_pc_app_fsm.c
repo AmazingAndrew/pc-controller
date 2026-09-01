@@ -91,22 +91,22 @@ int main(void)
     assert(fx[0].type == PC_FX_SLOT_SWITCH);
     assert(fx[0].arg.slot == 0);
 
-    /* ======== 菜单导航:8 项回绕 0..7(规格 §6 行 135) ======== */
+    /* ======== 菜单导航:9 项回绕 0..8(规格 §6 行 135 + #42 新增 RESET BLE) ======== */
     pc_fsm_init(&f, true, 0);
     pc_fsm_on_action(&f, PC_ACT_MENU_OPEN, true, fx, FX_CAP);
     assert(f.menu_sel == 0);
-    /* DOWN 导航 8 次:0->1->...->7->0(回绕)。 */
-    for (int i = 1; i <= 8; i++) {
+    /* DOWN 导航 9 次:0->1->...->8->0(回绕)。 */
+    for (int i = 1; i <= 9; i++) {
         n = pc_fsm_on_action(&f, PC_ACT_MENU_NEXT, true, fx, FX_CAP);
         assert(n == 0);
-        assert(f.menu_sel == (uint8_t)(i % 8));
+        assert(f.menu_sel == (uint8_t)(i % 9));
     }
-    /* UP 导航:0->7(反向回绕)。 */
+    /* UP 导航:0->8(反向回绕)。 */
     n = pc_fsm_on_action(&f, PC_ACT_MENU_PREV, true, fx, FX_CAP);
     assert(n == 0);
-    assert(f.menu_sel == 7);
+    assert(f.menu_sel == 8);
 
-    /* ======== 菜单确认分发(规格 §6 行 135 的 8 项) ======== */
+    /* ======== 菜单确认分发(规格 §6 行 135 的 8 项 + #42 项 8) ======== */
 
     /* 项 0 (1) PAIRING -> 进配对 + START_PAIR(转移表行 5)。 */
     pc_fsm_init(&f, true, 0);
@@ -166,6 +166,15 @@ int main(void)
     assert(n == 0);
     assert(f.state == PC_ST_STANDBY_MENU);
 
+    /* 项 8 (9) #42 RESET BLE -> 状态机不吐 effect(组装层
+     * on_menu_confirm_apply 按 menu_sel==8 自行处理武装/执行) */
+    pc_fsm_init(&f, true, 0);
+    pc_fsm_on_action(&f, PC_ACT_MENU_OPEN, true, fx, FX_CAP);
+    f.menu_sel = 8;
+    n = pc_fsm_on_action(&f, PC_ACT_MENU_CONFIRM, true, fx, FX_CAP);
+    assert(n == 0);
+    assert(f.state == PC_ST_STANDBY_MENU);
+
     /* 转移表行 6:菜单长按 -> 待机主页。 */
     n = pc_fsm_on_action(&f, PC_ACT_MENU_EXIT, true, fx, FX_CAP);
     assert(n == 0);
@@ -194,14 +203,22 @@ int main(void)
 
     /* ======== 全屏切换:记忆式翻转(规格 §1/FR-02) ======== */
 
-    /* 首次 OK 单击 -> 发 F5(0x3E) + 进全屏,记忆位置位。 */
+    /* 首次 OK 单击 -> 三连发跨平台全屏(#57:Win F5 / macOS PPT Cmd+Shift+Enter
+     * / macOS Keynote Opt+Cmd+P,各帧间留 200 ms 由组装层插入) + 进全屏,记忆位置位。 */
     pc_fsm_init(&f, true, 0);
     pc_fsm_on_action(&f, PC_ACT_ENTER_PRESENT, true, fx, FX_CAP);
     n = pc_fsm_on_action(&f, PC_ACT_FULLSCREEN_TOGGLE, true, fx, FX_CAP);
-    assert(n == 2);
+    assert(n == 4);
     assert(fx[0].type == PC_FX_HID_KEY);
+    assert(fx[0].arg.key.mods == 0);
     assert(fx[0].arg.key.keycode == 0x3E); /* PC_KEY_F5 */
-    assert(fx[1].type == PC_FX_PAGE_ENTER_FULLSCREEN);
+    assert(fx[1].type == PC_FX_HID_KEY);
+    assert(fx[1].arg.key.mods == (PC_MOD_LGUI | PC_MOD_LSHIFT)); /* 0x0A */
+    assert(fx[1].arg.key.keycode == 0x28); /* PC_KEY_RETURN */
+    assert(fx[2].type == PC_FX_HID_KEY);
+    assert(fx[2].arg.key.mods == (PC_MOD_LGUI | PC_MOD_LALT)); /* 0x0C */
+    assert(fx[2].arg.key.keycode == 0x13); /* PC_KEY_P */
+    assert(fx[3].type == PC_FX_PAGE_ENTER_FULLSCREEN);
     assert(f.fullscreen);
 
     /* 第二次 -> 发 Esc(0x29) + 退全屏,记忆位复位。 */
@@ -212,13 +229,17 @@ int main(void)
     assert(fx[1].type == PC_FX_PAGE_EXIT_FULLSCREEN);
     assert(!f.fullscreen);
 
-    /* 翻转记忆跨"进入-退出演示"周期复位:重新进入后第一次仍是 F5。 */
+    /* 翻转记忆跨"进入-退出演示"周期复位:重新进入后第一次仍是
+     * 三连发 F5 / Cmd+Shift+Enter / Opt+Cmd+P。 */
     n = pc_fsm_on_action(&f, PC_ACT_EXIT_TO_STANDBY, true, fx, FX_CAP);
     assert(f.state == PC_ST_STANDBY_HOME);
     n = pc_fsm_on_action(&f, PC_ACT_ENTER_PRESENT, true, fx, FX_CAP);
     n = pc_fsm_on_action(&f, PC_ACT_FULLSCREEN_TOGGLE, true, fx, FX_CAP);
-    assert(n == 2);
+    assert(n == 4);
     assert(fx[0].arg.key.keycode == 0x3E); /* 仍是 F5 */
+    assert(fx[1].arg.key.keycode == 0x28); /* Cmd+Shift+Enter */
+    assert(fx[2].arg.key.keycode == 0x13); /* Opt+Cmd+P */
+    assert(fx[3].type == PC_FX_PAGE_ENTER_FULLSCREEN);
 
     /* 全屏中长按退出:先发 Esc 键(B1 修复:与全屏切换退路径对齐,
      * 避免主机停留在演示全屏),再吐退全屏 effect 回待机。 */

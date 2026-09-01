@@ -69,6 +69,7 @@ static bool s_host_suspended;            /* 主机下过 HOGP Suspend,禁止发�
 static bool s_auto_readvertise;          /* 广播到期自动续发(配对/回连窗口) */
 static bool s_adv_directed;              /* 当前续发模式:定向(否则通用) */
 static uint8_t s_adv_direct_addr[6];     /* 定向续发目标地址 */
+static uint8_t s_adv_direct_addr_type;   /* 定向续发目标地址类型(#54) */
 static uint8_t s_addr_type;              /* 本机地址类型(广播用) */
 static uint16_t s_conn_handle;           /* 当前连接句柄 */
 
@@ -431,18 +432,15 @@ static int adv_general_locked(void)
 
 /* 定向广播(规格 §10:断连后先定向 30 s;FR-06:槽位切换后对目标槽
  * 定向)。NimBLE 定向广播为高占空比,单轮 ~1.28 s,到期由
- * gap_event 的 ADV_COMPLETE 自动续发(局限 3)。 */
-static int adv_directed_locked(const uint8_t addr[6])
+ * gap_event 的 ADV_COMPLETE 自动续发(局限 3)。
+ * 参数:addr_type 由调用方提供(#54),与槽位元数据的 addr_type
+ *       一致;不再依赖最近一次连接记录作为 fallback。 */
+static int adv_directed_locked(const uint8_t addr[6], uint8_t addr_type)
 {
     /* 定向广播(ADV_DIRECT_IND)不携带广播数据,无需设置字段。
      * NimBLE 定向广播为高占空比,单轮最长 1280 ms。 */
     ble_addr_t peer = { 0 };
-    /* 局限 1:槽位元数据未持久化地址类型;有连接记录且地址匹配时
-     * 复用其类型,否则按 public 处理(实测若失败,真机侧把槽位
-     * 元数据扩展为"地址+类型"即可,属后续里程碑微调)。 */
-    peer.type = (s_peer_known && memcmp(s_peer_addr, addr, 6) == 0)
-                    ? s_peer_addr_type
-                    : BLE_ADDR_PUBLIC;
+    peer.type = addr_type;
     memcpy(peer.val, addr, 6);
 
     struct ble_gap_adv_params params = { 0 };
@@ -489,9 +487,13 @@ static int gap_event(struct ble_gap_event *event, void *arg)
     case BLE_GAP_EVENT_ADV_COMPLETE:
         /* 配对页通用广播自动续发;定向广播到期自动续发直至
          * 组装层显式停止(规格 §10 的 30 s / 2 min 窗口由组装层
-         * 的定时器控制时长,本层只负责"续")。 */
-        if (s_auto_readvertise && !s_connected) {
-            int rc = s_adv_directed ? adv_directed_locked(s_adv_direct_addr)
+         * 的定时器控制时长,本层只负责"续")。
+         * #43:续发起前若 host 处于 reset 中(s_initialized 已被
+         * on_reset 清零),s_adv_directed / s_adv_direct_addr 已被复位,
+         * 不会走到 adv_directed_locked,避免悬空引用。 */
+        if (s_auto_readvertise && !s_connected && s_initialized) {
+            int rc = s_adv_directed ? adv_directed_locked(s_adv_direct_addr,
+                                                           s_adv_direct_addr_type)
                                     : adv_general_locked();
             if (rc != 0) {
                 ESP_LOGW(TAG, "re-advertise failed: %d", rc);
@@ -540,9 +542,26 @@ static int gap_event(struct ble_gap_event *event, void *arg)
 
 static void on_reset(int reason)
 {
-    /* host 复位:记录原因;连接标志随之失效,等待重新 sync。 */
+    /* host 复位:记录原因;连接标志随之失效,等待重新 sync。
+     * #43:同步清零全部相关状态,避免下一次 sync 后出现"挂起态
+     * 残留 / 对端记录陈旧 / 广播续发指向已不可达地址"等隐患。
+     * NimBLE host 复位期间回调不保证时序,清零顺序无关紧要。 */
     ESP_LOGW(TAG, "nimble host reset, reason=%d", reason);
     s_connected = false;
+    s_host_suspended = false;            /* HOGP Suspend 状态丢失,重置 */
+    s_peer_known = false;                /* 对端身份记录失效 */
+    memset(s_peer_addr, 0, sizeof(s_peer_addr));
+    s_peer_addr_type = 0;
+    s_auto_readvertise = false;          /* 停止广播自动续发 */
+    s_adv_directed = false;
+    memset(s_adv_direct_addr, 0, sizeof(s_adv_direct_addr));
+    s_adv_direct_addr_type = 0;
+    s_conn_handle = 0;
+    /* 注意:s_initialized 不清——NimBLE host 复位后仍会重新调
+     * on_sync,本模块其它接口在未重新 sync 前会因 s_initialized
+     * 仍为 true 而走通知路径,但 s_connected 已清零,自然短路。
+     * 若需要彻底重置,把 s_initialized = false 配合 nimble_port
+     * deinit 一起做(本里程碑不引入新流程,仅修字段清零一致性)。 */
 }
 
 /* 与 demo_ble.c on_sync(行 79-88)同构:取地址 -> 推断类型 ->
@@ -666,22 +685,44 @@ esp_err_t pc_ble_hid_start_adv_general(void)
     return ESP_OK;
 }
 
-esp_err_t pc_ble_hid_start_adv_directed(const uint8_t addr[6])
+esp_err_t pc_ble_hid_start_adv_directed(const uint8_t addr[6], uint8_t addr_type)
 {
     if (!s_initialized || addr == NULL) return ESP_ERR_INVALID_ARG;
     if (s_connected) return ESP_ERR_INVALID_STATE;
     ble_gap_adv_stop();
     /* 定向广播单轮 ~1.28 s,到期 ADV_COMPLETE 后按同一目标地址续发;
-     * 窗口时长(30 s / 2 min)由组装层定时器到时后调 stop_adv。 */
+     * 窗口时长(30 s / 2 min)由组装层定时器到时后调 stop_adv。
+     * #54:持久化 addr_type 直接传入,不再 fallback 到最近连接记录。 */
     memcpy(s_adv_direct_addr, addr, 6);
+    s_adv_direct_addr_type = addr_type;
     s_adv_directed = true;
-    int rc = adv_directed_locked(addr);
+    int rc = adv_directed_locked(addr, addr_type);
     if (rc != 0) {
         ESP_LOGE(TAG, "directed adv failed: %d", rc);
         return ESP_FAIL;
     }
     s_auto_readvertise = true;
     return ESP_OK;
+}
+
+esp_err_t pc_ble_hid_clear_bond(const uint8_t addr[6], uint8_t addr_type)
+{
+    if (!s_initialized) return ESP_ERR_INVALID_STATE;
+    if (addr == NULL) return ESP_ERR_INVALID_ARG;
+    /* #55:删 NimBLE 对端绑定记录(从 controller 的 resolve list 移
+     * 除,从 ble_store 删 LTK/IRK/CSRK)。该接口对未注册的 addr
+     * 返回 BLE_HS_ENOENT,本模块视为"已不存在",返回 ESP_OK
+     * (清槽语义本身包含"无论是否存在都成功清除"承诺)。 */
+    ble_addr_t peer = { 0 };
+    peer.type = addr_type;
+    memcpy(peer.val, addr, 6);
+    int rc = ble_gap_unpair(&peer);
+    if (rc == 0 || rc == BLE_HS_ENOENT) {
+        return ESP_OK;
+    }
+    ESP_LOGW(TAG, "ble_gap_unpair failed: %d (addr_type=%u)", rc,
+             (unsigned)addr_type);
+    return ESP_FAIL;
 }
 
 esp_err_t pc_ble_hid_stop_adv(void)
@@ -730,11 +771,25 @@ esp_err_t pc_ble_hid_send_keyboard(const pc_kbd_report_t *r)
     esp_err_t err = report_notify(s_kbd_report_handle, (const uint8_t *)r, sizeof(*r));
     if (err != ESP_OK) return err;
 
-    /* 必跟空报告释放按键(规格 §1/FR-01:无卡键) */
+    /* 必跟空报告释放按键(规格 §1/FR-01:无卡键)
+     * #56:release 失败时重试一次空报告——长 PowerPoint 会话期间偶
+     * 尔 press 后 TX 立刻遇到无线竞争,第二次 send 同路径失败,主机
+     * 侧会把那个键视为长按并自动重复。在 press 与 release 之间加
+     * 50 ms 让出无线信道后再发一次空报告;若仍失败记 error 交
+     * 给屏显链路丢失降级处理(规格 §10)。 */
     pc_kbd_report_t empty;
     pc_kbd_clear(&empty);
     memcpy(s_last_kbd, &empty, sizeof(s_last_kbd));
-    return report_notify(s_kbd_report_handle, (const uint8_t *)&empty, sizeof(empty));
+    err = report_notify(s_kbd_report_handle, (const uint8_t *)&empty, sizeof(empty));
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Keyboard release failed (rc=%d), retrying...", err);
+        vTaskDelay(pdMS_TO_TICKS(50));
+        err = report_notify(s_kbd_report_handle, (const uint8_t *)&empty, sizeof(empty));
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Keyboard release retry failed (rc=%d)", err);
+        }
+    }
+    return err;
 }
 
 esp_err_t pc_ble_hid_send_consumer(uint16_t usage)
@@ -783,6 +838,16 @@ esp_err_t pc_ble_hid_peer_addr(uint8_t out[6])
     if (!s_peer_known) return ESP_ERR_INVALID_STATE;
     memcpy(out, s_peer_addr, 6);
     return ESP_OK;
+}
+
+uint8_t pc_ble_hid_peer_addr_type(void)
+{
+    /* #54:仅暴露地址类型;无连接记录时返回 0 (=BLE_ADDR_PUBLIC),
+     * 与 s_peer_addr_type 静态变量初值一致。调用方按
+     * "有 s_peer_addr 时此返回值有效"语义使用——无记录时
+     * pc_ble_hid_peer_addr 已先返回 ESP_ERR_INVALID_STATE,
+     * 不会走到这里。 */
+    return s_peer_known ? s_peer_addr_type : 0;
 }
 
 esp_err_t pc_ble_hid_stop(void)

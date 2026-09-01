@@ -44,15 +44,22 @@ typedef struct {
 
 /* 单槽元数据(命名空间 `pp_slot0`..`pp_slot2`)。
  * 键与类型:
- *   "addr"      blob 6 字节对端身份地址;键存在即视为已绑定
- *   "host_name" str  主机显示名(<= 16 字符 + '\0'),未绑定为空串
- *   "os"        u8   主机 OS 类型(pc_os_t)
- *   "lock_mods" u8   锁屏组合键修饰位(0 = 未记录,锁屏时按 os 回退
- *                    到 pc_host_profiles 表)
- *   "lock_key"  u8   锁屏组合键键码(同上)
- *   "last_use"  u32  最近使用时间戳(组装层以运行期秒数写入) */
+ *   "addr"       blob 6 字节对端身份地址;键存在即视为已绑定
+ *   "addr_type"  u8   BLE 地址类型(配对成功时记录;
+ *                     0 = BLE_ADDR_PUBLIC,1 = BLE_ADDR_RANDOM 之类,
+ *                     与 NimBLE ble_addr_t.type 同构)
+ *   "host_name"  str  主机显示名(<= 16 字符 + '\0'),未绑定为空串
+ *   "os"         u8   主机 OS 类型(pc_os_t)
+ *   "lock_mods"  u8   锁屏组合键修饰位(0 = 未记录,锁屏时按 os 回退
+ *                     到 pc_host_profiles 表)
+ *   "lock_key"   u8   锁屏组合键键码(同上)
+ *   "last_use"   u32  最近使用时间戳(组装层以运行期秒数写入) */
 typedef struct {
     uint8_t addr[6];      /* 对端身份地址(配对成功时写入) */
+    uint8_t addr_type;    /* 对端地址类型(#54:持久化以保证定向广播
+                           * 使用真实类型,避免随机地址主机回连失败);
+                           * 旧槽未写该键时按 BLE_ADDR_PUBLIC 处理
+                           * (向下兼容,见 pc_storage.c)。 */
     bool bound;           /* 是否已绑定(= "addr" 键存在且非全零) */
     char host_name[17];   /* 主机显示名,恒以 '\0' 结尾 */
     uint8_t os;           /* 主机 OS 类型,取值 0..PC_OS_MAX-1 */

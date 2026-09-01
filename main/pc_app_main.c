@@ -78,6 +78,8 @@ static const char *TAG = "pc_app";
 #define RECON_DIRECTED_US 30000000 /* 断连重连:定向广播窗口 30 s(规格 §10) */
 #define RECON_GENERAL_US 120000000 /* 随后通用广播窗口 2 min(规格 §10) */
 #define FX_CAP 4                /* FSM 单次最大 3 个 effect,留 1 个余量 */
+#define HID_KEY_BURST_GAP_MS 200 /* #57 跨平台全屏三连发间隔 */
+#define BLE_RESET_ARM_WINDOW_MS 3000 /* #42 两步式重置二次确认窗口 */
 
 /* 纯逻辑枚举与 BSP 枚举逐值同构校验(规格 §5:按键事件数值透传,
  * 无需转换)。任一侧改动都会在此编译期炸出,防止静默错位。
@@ -152,6 +154,14 @@ static uint8_t s_volume = 50;          /* 媒体音量本地展示计数 0..99,
                                         * FR-04、ui-design §4.4"VOL nn")。
                                         * 上限 99 与 UI 路径钳制一致
                                         * (pc_ui_set_volume / pc_ui_media_set_volume)。 */
+
+/* #42 两步式 BLE 重置武装状态:0 表示未武装;非零表示武装
+ * 截止 tick(单位:FreeRTOS tick)。二次确认在窗口内即执行重置。 */
+static TickType_t s_reset_arm_tick;
+
+/* #42 重置武装超时定时器:3 s 到时后自动撤除武装(若未二次
+ * 确认)。由 esp_timer 调度,仅重置标志,不显示反馈。 */
+static esp_timer_handle_t s_reset_arm_timer;
 
 static void app_task(void *arg);
 static void run_effects(const pc_effect_t *fx, int n);
@@ -228,7 +238,8 @@ static void on_power_notify(pc_pm_ev_t ev)
             pc_slot_t s;
             pc_slot_load(s_cfg.slot, &s); /* 失败已回填默认值 */
             if (s.bound) {
-                (void)pc_ble_hid_start_adv_directed(s.addr);
+                /* #54:传入持久化的 addr_type,定向广播用真实类型。 */
+                (void)pc_ble_hid_start_adv_directed(s.addr, s.addr_type);
             } else {
                 (void)pc_ble_hid_start_adv_general();
             }
@@ -272,6 +283,12 @@ static void save_slot_on_pair_ok(void)
     uint8_t addr[6];
     if (pc_ble_hid_peer_addr(addr) == ESP_OK) {
         memcpy(s.addr, addr, sizeof(s.addr));
+        /* #54:同步保存 peer 地址类型。pc_ble_hid 模块内部
+         * s_peer_addr_type 是最近一次连接 GAP 事件记录的
+         * peer_id_addr.type,与 NimBLE 定向广播使用的类型一致;
+         * 若未拿到对端地址(下面 else 分支)同样不要写 type,保持
+         * 默认 BLE_ADDR_PUBLIC。 */
+        s.addr_type = pc_ble_hid_peer_addr_type();
         s.bound = true;
     } else {
         ESP_LOGW(TAG, "pair ok but peer addr unknown; slot not marked bound");
@@ -432,7 +449,16 @@ static void do_lock_combo(void)
 
 static void run_effects(const pc_effect_t *fx, int n)
 {
+    /* #57:跨平台全屏三连发——连续两帧 HID_KEY effect 之间需 200 ms
+     * 间隔,避免主机侧把多组合键视为同一次快速连击(尤其 macOS
+     * PowerPoint / Keynote)。仅在该函数本次调用内连续出现 HID_KEY
+     * 时插 delay;其它 effect 序列(翻页/锁屏等)不会被误伤。 */
+    bool last_was_hid_key = false;
     for (int i = 0; i < n; i++) {
+        if (i > 0 && fx[i].type == PC_FX_HID_KEY && last_was_hid_key) {
+            vTaskDelay(pdMS_TO_TICKS(HID_KEY_BURST_GAP_MS));
+        }
+        last_was_hid_key = (fx[i].type == PC_FX_HID_KEY);
         switch (fx[i].type) {
         case PC_FX_HID_KEY: {
             /* 普通键:组帧 -> 发送(内部补空报告释放,规格 §1/FR-01) */
@@ -506,11 +532,12 @@ static void run_effects(const pc_effect_t *fx, int n)
 
         case PC_FX_START_PAIR: {
             /* 已绑定槽重配对 -> 定向广播;空槽 -> 通用广播(配对码
-             * 在主机发起配对时经 PASSKEY 事件屏显,规格 §1/FR-07) */
+             * 在主机发起配对时经 PASSKEY 事件屏显,规格 §1/FR-07)。
+             * #54:定向广播用槽位持久化的 addr_type。 */
             pc_slot_t s;
             pc_slot_load(s_fsm.slot, &s);
             if (s.bound) {
-                (void)pc_ble_hid_start_adv_directed(s.addr);
+                (void)pc_ble_hid_start_adv_directed(s.addr, s.addr_type);
             } else {
                 (void)pc_ble_hid_start_adv_general();
             }
@@ -536,7 +563,8 @@ static void run_effects(const pc_effect_t *fx, int n)
             pc_slot_t s;
             pc_slot_load(target, &s);
             if (s.bound) {
-                (void)pc_ble_hid_start_adv_directed(s.addr);
+                /* #54:定向广播用槽位持久化的 addr_type。 */
+                (void)pc_ble_hid_start_adv_directed(s.addr, s.addr_type);
             } else {
                 (void)pc_ble_hid_start_adv_general();
             }
@@ -568,12 +596,13 @@ static void run_effects(const pc_effect_t *fx, int n)
 
         case PC_FX_ADV_RECONNECT: {
             /* 规格 §10:定向 30 s -> 通用 2 min(时长由
-             * s_recon_dir_timer / s_recon_gen_timer 控制) */
+             * s_recon_dir_timer / s_recon_gen_timer 控制)。
+             * #54:定向广播用真实地址类型。 */
             pc_slot_t s;
             pc_slot_load(s_cfg.slot, &s);
             esp_timer_stop(s_recon_gen_timer); /* 防旧窗口残留 */
             if (s.bound &&
-                pc_ble_hid_start_adv_directed(s.addr) == ESP_OK) {
+                pc_ble_hid_start_adv_directed(s.addr, s.addr_type) == ESP_OK) {
                 esp_timer_start_once(s_recon_dir_timer, RECON_DIRECTED_US);
             } else {
                 (void)pc_ble_hid_start_adv_general();
@@ -712,7 +741,7 @@ static void handle_ble(const pc_evq_t *e)
             pc_slot_load(s_cfg.slot, &sl); /* 失败已回填默认值 */
             esp_timer_stop(s_recon_gen_timer); /* 防旧窗口残留 */
             if (sl.bound &&
-                pc_ble_hid_start_adv_directed(sl.addr) == ESP_OK) {
+                pc_ble_hid_start_adv_directed(sl.addr, sl.addr_type) == ESP_OK) {
                 esp_timer_start_once(s_recon_dir_timer,
                                      RECON_DIRECTED_US);
             } else {
@@ -815,6 +844,62 @@ static void handle_feedback_timeout(void)
     ui_show_state(s_fsm.state); /* 回到当前模式页 */
 }
 
+/* ---- #42 两步式 BLE 重置助手 ---- */
+
+/* 重置武装超时回调:3 s 窗口自然过期。仅重置标志,不显示反馈
+ * (用户已离开该菜单项或放弃二次确认均视为取消)。运行于 esp_timer
+ * 任务,只更新静态变量,线程安全。 */
+static void on_reset_arm_expired(void *arg)
+{
+    (void)arg;
+    s_reset_arm_tick = 0;
+    ESP_LOGI(TAG, "BLE reset: arm window expired, disarmed silently");
+}
+
+/* 执行重置:nvs_flash_erase + esp_restart。注意该函数不返回。 */
+static void do_ble_reset(void)
+{
+    ESP_LOGW(TAG, "BLE reset: user-confirmed, erasing NVS and restarting");
+    /* 先显示一条极短的反馈——esp_restart 不会等反馈完成,但 UI
+     * 已经在调用前由 ui_feedback 推到屏,屏显残影足以让用户看到
+     * “正在重置”。真正重启在 nvs_flash_erase 完成后立刻发生。 */
+    esp_err_t err = nvs_flash_erase();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "BLE reset: nvs_flash_erase failed: %s",
+                 esp_err_to_name(err));
+        /* 即使擦除失败也重启,让 bootloader 走默认恢复路径 */
+    }
+    esp_restart();
+}
+
+static void do_ble_reset_arm(void)
+{
+    /* 武装:记录当前 tick + 截止时间;启 3 s 一次定时器,到时撤
+     * 除武装。同一菜单项二次确认进 do_ble_reset_confirm。 */
+    TickType_t now = xTaskGetTickCount();
+    s_reset_arm_tick = now + pdMS_TO_TICKS(BLE_RESET_ARM_WINDOW_MS);
+    esp_timer_stop(s_reset_arm_timer); /* 防旧计时残留 */
+    esp_timer_start_once(s_reset_arm_timer,
+                         (uint64_t)BLE_RESET_ARM_WINDOW_MS * 1000U);
+    ESP_LOGW(TAG, "BLE reset: armed, awaiting second confirm within %u ms",
+             (unsigned)BLE_RESET_ARM_WINDOW_MS);
+}
+
+static bool do_ble_reset_confirm(void)
+{
+    /* 二次确认:仅在窗口内返回 true(调用方随即重置)。 */
+    if (s_reset_arm_tick == 0) return false;
+    TickType_t now = xTaskGetTickCount();
+    if (now < s_reset_arm_tick) {
+        s_reset_arm_tick = 0;
+        esp_timer_stop(s_reset_arm_timer);
+        return true;
+    }
+    /* 窗口已过期:视为新一次的首次确认,重新武装。 */
+    do_ble_reset_arm();
+    return false;
+}
+
 /* ---- 菜单确认业务下发(A1 修复) ----
  * 状态机吐完 PC_FX_SAVE_CFG 后,组装层根据 s_fsm.menu_sel 修改
  * s_cfg + 同步全路端:背光(电源管理器)/按键音(蜂鸣器)/
@@ -869,6 +954,22 @@ static void on_menu_confirm_apply(pc_action_t act)
              * 不动,UI 反馈页返回原菜单页。 */
         ui_feedback(pc_str_en[PC_STR_ABOUT_APP],
                     pc_str_en[PC_STR_ABOUT_VERSION]);
+        break;
+
+    case 8: /* #42 RESET BLE:两步式确认。
+             * 状态机对项 8 不吐 effect,业务全部在本函数完成:
+             *   - 首次确认(未武装或窗口已过期):武装,反馈 ARMED;
+             *   - 窗口内二次确认:立即反馈 RESETTING 并调用 do_ble_reset
+             *     (内部 nvs_flash_erase + esp_restart,不会返回)。
+             * 重置路径必须从已武装状态触发,避免误触。 */
+        if (do_ble_reset_confirm()) {
+            ui_feedback(pc_str_en[PC_STR_FB_RESET_CONFIRM], "");
+            do_ble_reset(); /* 不会返回 */
+        } else {
+            /* 首次确认或窗口已自动撤除后的二次确认:重新武装并反馈 */
+            do_ble_reset_arm();
+            ui_feedback(pc_str_en[PC_STR_FB_RESET_ARM], "");
+        }
         break;
 
     default:
@@ -986,7 +1087,8 @@ void app_main(void)
     }
 
     /* 5. esp_timer:1 Hz 计时 / 10 s 电量 / 1.5 s 反馈 / 重连窗口
-     *    (规格 §7 行 163 + §10 重连链)。回调只入队。 */
+     *    (规格 §7 行 163 + §10 重连链)。回调只入队。
+     *    #42:新增 s_reset_arm_timer(3 s 一次,#42 重置武装超时)。 */
     const esp_timer_create_args_t tick_args = { .callback = on_tick,
                                                 .name = "pc_tick" };
     const esp_timer_create_args_t batt_args = { .callback = on_batt_poll,
@@ -997,11 +1099,14 @@ void app_main(void)
                                                .name = "pc_recon_dir" };
     const esp_timer_create_args_t gen_args = { .callback = on_recon_general_expired,
                                                .name = "pc_recon_gen" };
+    const esp_timer_create_args_t rst_args = { .callback = on_reset_arm_expired,
+                                               .name = "pc_reset_arm" };
     esp_timer_create(&tick_args, &s_tick_timer);
     esp_timer_create(&batt_args, &s_batt_timer);
     esp_timer_create(&fb_args, &s_feedback_timer);
     esp_timer_create(&dir_args, &s_recon_dir_timer);
     esp_timer_create(&gen_args, &s_recon_gen_timer);
+    esp_timer_create(&rst_args, &s_reset_arm_timer);
     esp_timer_start_periodic(s_tick_timer, TICK_PERIOD_US);
     esp_timer_start_periodic(s_batt_timer, BATT_POLL_US);
 
@@ -1039,7 +1144,8 @@ void app_main(void)
             pc_slot_t s;
             pc_slot_load(s_cfg.slot, &s);
             if (s.bound) {
-                (void)pc_ble_hid_start_adv_directed(s.addr);
+                /* #54:定向广播用槽位持久化的 addr_type。 */
+                (void)pc_ble_hid_start_adv_directed(s.addr, s.addr_type);
             } else {
                 (void)pc_ble_hid_start_adv_general();
             }

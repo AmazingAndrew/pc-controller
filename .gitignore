@@ -12,3 +12,8 @@ _verify_bin/
 # 重复运行 check_repo.py / verify_firmware.py 会产生,显式忽略)
 __pycache__/
 *.pyc
+
+# Host test binaries (developers run validate.sh --static and tests/*.c directly
+# via cc; the resulting executables should not enter the repository)
+tests/*.exe
+test_pc_app_fsm.exe

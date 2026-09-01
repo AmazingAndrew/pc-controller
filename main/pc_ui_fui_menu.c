@@ -32,13 +32,15 @@
 
 /* ---- 布局常量 ---- */
 
-#define MENU_ITEMS  8     /* 菜单项数(规格 §6 行 135) */
-#define MENU_ROW_H  27    /* 行高:8×27 = 216,恰好铺满内容区 */
-#define MENU_TOP    40    /* 首行 y(顶栏 32 之下留缝) */
+/* 9 项(规格 §6 行 135 原有 8 项 + #42 新增 RESET BLE),8×27=216 仍
+ * 刚好铺满内容区;9×27=243,顶部起点 -3 px 即可。 */
+#define MENU_ITEMS  9
+#define MENU_ROW_H  27    /* 行高:9×27 = 243,首行 y 微调以贴顶栏缝 */
+#define MENU_TOP    37    /* 首行 y(顶栏 32 之下 5 px 缝,容纳 9 行) */
 #define MENU_LEFT   10    /* 10 px 安全边距 */
 #define MENU_W      220   /* 240 - 2×10 */
 
-/* 8 项文案:直接取字符串表,索引与枚举一一对应(表项顺序即
+/* 9 项文案:直接取字符串表,索引与枚举一一对应(表项顺序即
  * 菜单顺序,见 pc_strings.h 注释)。 */
 static const pc_str_t s_items[MENU_ITEMS] = {
     PC_STR_MENU_PAIRING,
@@ -49,6 +51,7 @@ static const pc_str_t s_items[MENU_ITEMS] = {
     PC_STR_MENU_BACKLIGHT,
     PC_STR_MENU_MEDIA_MODE,
     PC_STR_MENU_ABOUT,
+    PC_STR_MENU_RESET_BLE,
 };
 
 /* ---- 文件内状态 ---- */

@@ -50,6 +50,7 @@ typedef enum {
     PC_STR_MENU_BACKLIGHT,    /* 菜单项 5:背光设置 */
     PC_STR_MENU_MEDIA_MODE,   /* 菜单项 6:进入媒体模式 */
     PC_STR_MENU_ABOUT,        /* 菜单项 7:关于页 */
+    PC_STR_MENU_RESET_BLE,    /* 菜单项 8:#42 RESET BLE,两步式重置 */
 
     /* ---- 配置取值词 ---- */
     PC_STR_VALUE_ON,  /* 开 */
@@ -70,6 +71,8 @@ typedef enum {
     PC_STR_FB_SLOT_CLEARED, /* 槽位绑定已清除 */
     PC_STR_FB_SAVED,        /* 配置已保存 */
     PC_STR_FB_PASSKEY,      /* 配对码标签(其后跟 6 位数字) */
+    PC_STR_FB_RESET_ARM,    /* #42 两步式 BLE 重置:武装,等待二次确认 */
+    PC_STR_FB_RESET_CONFIRM,/* #42 二次确认后短暂反馈(立即 esp_restart) */
 
     /* ---- 关于页 ---- */
     PC_STR_ABOUT_APP,     /* 应用名 */

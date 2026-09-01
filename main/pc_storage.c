@@ -15,6 +15,8 @@
 #include "nvs.h"
 #include "nvs_flash.h"
 
+#include "pc_ble_hid.h" /* pc_ble_hid_clear_bond (#55:清槽同时删 NimBLE 绑定) */
+
 #include <stdio.h>
 #include <string.h>
 
@@ -83,8 +85,11 @@ static void cfg_defaults(pc_cfg_t *cfg)
 
 static void slot_defaults(pc_slot_t *s)
 {
-    memset(s, 0, sizeof(*s)); /* addr 全零、os = 0、组合键 0、时间戳 0 */
+    memset(s, 0, sizeof(*s)); /* addr 全零、addr_type = 0 (= BLE_ADDR_PUBLIC,
+                                * 默认 public 向下兼容)、os = 0、组合键 0、
+                                * 时间戳 0 */
     s->bound = false;
+    s->addr_type = 0; /* BLE_ADDR_PUBLIC(防御:NVS 错误清零的边界) */
     /* host_name 已被 memset 清为 '\0' */
 }
 
@@ -170,6 +175,15 @@ esp_err_t pc_slot_load(uint8_t i, pc_slot_t *s)
         s->bound = true;
     }
 
+    /* addr_type:u8(#54)——键缺失默认 BLE_ADDR_PUBLIC(=0),与旧版
+     * (未持久化 addr_type)创建的槽位向下兼容。 */
+    uint8_t at = 0;
+    if (nvs_get_u8(h, "addr_type", &at) == ESP_OK) {
+        s->addr_type = at;
+    } else {
+        s->addr_type = 0; /* BLE_ADDR_PUBLIC */
+    }
+
     /* host_name:字符串,容量 17 字节(含 '\0') */
     size_t name_len = sizeof(s->host_name);
     if (nvs_get_str(h, "host_name", s->host_name, &name_len) != ESP_OK) {
@@ -205,12 +219,19 @@ esp_err_t pc_slot_save(uint8_t i, const pc_slot_t *s)
 
     if (s->bound) {
         err = nvs_set_blob(h, "addr", s->addr, sizeof(s->addr));
+        if (err == ESP_OK) {
+            /* #54:同步写 addr_type;绑定存在时必写——即使与上次一致
+             * 也写一次,以便旧槽(只写了 addr)在本次保存后具备完整字段。 */
+            err = nvs_set_u8(h, "addr_type", s->addr_type);
+        }
     } else {
         /* 未绑定槽不留 "addr" 键,保持"键存在 = 已绑定"语义。
          * 注:ESP-IDF v5.x 的 NVS API 已将 nvs_delete_key 重命名为
          * nvs_erase_key(原符号在新版本 NVS 头文件中已移除,
          * 编译报 implicit-function-declaration)。 */
         nvs_erase_key(h, "addr");
+        /* addr_type 同样不写(只对已绑定槽有效)。 */
+        nvs_erase_key(h, "addr_type");
     }
     if (err == ESP_OK) err = nvs_set_str(h, "host_name", s->host_name);
     if (err == ESP_OK) err = nvs_set_u8(h, "os", s->os);
@@ -233,6 +254,27 @@ esp_err_t pc_slot_clear(uint8_t i)
         return ESP_ERR_INVALID_STATE;
     }
 
+    /* #55:先读槽位拿 addr + addr_type,然后删 NimBLE 绑定记录。
+     * NimBLE 的绑定存储在 ble_hs / ble_store 自己的 flash 区,不会随
+     * 本模块命名空间的 nvs_erase_all 被擦除——必须显式调
+     * ble_gap_unpair 删除,否则主机侧长期 key 仍保留,会导致下次同
+     * 地址配对时旧 LTK 被重复使用、或主机自动重连一个已被用户
+     * "清除"的槽位。删除失败仅记 warning,继续走 NVS 擦除——
+     * 清除槽位的用户意图不能被绑定删除失败拖住。 */
+    pc_slot_t s;
+    (void)pc_slot_load(i, &s); /* 失败已回填默认值 */
+    if (s.bound) {
+        esp_err_t br = pc_ble_hid_clear_bond(s.addr, s.addr_type);
+        if (br != ESP_OK) {
+            ESP_LOGW(TAG,
+                     "slot %u clear: NimBLE bond delete failed (rc=%d); "
+                     "NVS metadata erased anyway",
+                     (unsigned)i, br);
+        } else {
+            ESP_LOGI(TAG, "slot %u clear: NimBLE bond deleted", (unsigned)i);
+        }
+    }
+
     char ns[16];
     slot_ns_name(i, ns);
     nvs_handle_t h;
@@ -245,7 +287,9 @@ esp_err_t pc_slot_clear(uint8_t i)
     }
     /* FR-08:只删该槽命名空间内的键,不擦分区。
      * 注意:对应主机的 NimBLE 绑定记录保留,由"主机侧忘记设备后
-     * 重新配对覆盖"流程处理(见头文件注释与规格 §1/FR-08)。 */
+     * 重新配对覆盖"流程处理(见头文件注释与规格 §1/FR-08)。
+     * —— 本里程碑(#55)起该绑定由上方 pc_ble_hid_clear_bond() 显式
+     * 删除;此处只清本模块命名空间。 */
     err = nvs_erase_all(h);
     if (err == ESP_OK) err = nvs_commit(h);
     nvs_close(h);

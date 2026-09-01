@@ -11,10 +11,12 @@
 
 #include "pc_hid_reports.h" /* PC_KEY_* 键码常量(HID 翻页/全屏键) */
 
-/* 待机菜单项数量。规格 §6(行 135):恰好 8 项,顺序固定:
+/* 待机菜单项数量。规格 §6(行 135)8 项 + #42 新增第 9 项 RESET BLE,
+ * 顺序固定:
  *   0 PAIRING、1 CLEAR SLOT、2 SLOT、3 HOST PROFILE、
- *   4 KEY SOUND、5 BACKLIGHT、6 MEDIA MODE、7 ABOUT。 */
-#define PC_MENU_COUNT 8
+ *   4 KEY SOUND、5 BACKLIGHT、6 MEDIA MODE、7 ABOUT、
+ *   8 RESET BLE(两步式确认,本里程碑新增)。 */
+#define PC_MENU_COUNT 9
 
 /* 设备槽位数量。规格 §1:三个设备槽位,串行切换
  * (受 MAX_CONNECTIONS=1 约束)。 */
@@ -120,7 +122,7 @@ static void enter_pair(pc_fsm_t *f, pc_fx_buf_t *b)
 }
 
 /* 菜单确认分发。仅在待机菜单页调用。
- * 8 项行为逐一对照规格 §6 行 135 与任务契约:
+ * 9 项行为逐一对照规格 §6 行 135 与任务契约(#42 新增第 9 项):
  *   0 PAIRING      -> 进配对(转移表行 5)
  *   1 CLEAR SLOT   -> 清当前槽绑定,停留菜单
  *   2 SLOT         -> 循环切换槽位,停留菜单
@@ -128,7 +130,10 @@ static void enter_pair(pc_fsm_t *f, pc_fx_buf_t *b)
  *   4 KEY SOUND    -> 配置类,持久化,停留菜单
  *   5 BACKLIGHT    -> 配置类,持久化,停留菜单
  *   6 MEDIA MODE   -> 进媒体模式(转移表行 4)
- *   7 ABOUT        -> 仅屏显,无 effect */
+ *   7 ABOUT        -> 仅屏显,无 effect
+ *   8 RESET BLE    -> #42 两步式重置(具体逻辑在组装层处理武装/
+ *                    执行,状态机仅吐 0 effect 让业务层按菜单项
+ *                    索引判别)。 */
 static void menu_confirm(pc_fsm_t *f, pc_fx_buf_t *b)
 {
     switch (f->menu_sel) {
@@ -153,6 +158,10 @@ static void menu_confirm(pc_fsm_t *f, pc_fx_buf_t *b)
         fx_push(b, PC_FX_ENTER_MEDIA);
         break;
     case 7: /* ABOUT:仅屏显,状态机不产生任何 effect */
+    case 8: /* #42 RESET BLE:两步式重置的武装/执行状态机在组装层,
+             * 状态机不吐 effect(on_menu_confirm_apply 在调用
+             * pc_fsm_on_action 之后根据 menu_sel == 8 自行处理
+             * 武装/执行)。 */
     default:
         break;
     }
@@ -297,12 +306,25 @@ int pc_fsm_on_action(pc_fsm_t *f, pc_action_t a, bool ble_connected, pc_effect_t
 
     case PC_ACT_FULLSCREEN_TOGGLE:
         /* 全屏切换:记忆式翻转(规格 §1/FR-02)。
-         * 第一次(记忆位 = 未全屏) -> 发 F5 + 进全屏;
+         * 第一次(记忆位 = 未全屏) -> 发跨平台三连发(#57:
+         *   F5 / Cmd+Shift+Enter / Option+Cmd+P) + 进全屏;
          * 第二次(记忆位 = 全屏)   -> 发 Esc + 退全屏。
+         * #57 跨平台兼容:原 F5 单发在 macOS Keynote/PowerPoint
+         * 上不进全屏;三连发覆盖三个 OS 路径,各帧间留 200 ms 由
+         * 组装层按"连续 HID_KEY effect"检测插入,状态机仅描述意图。
          * 设备记住翻转状态,保证在三个 OS 上行为一致。 */
         if (f->state == PC_ST_PRESENT) {
             if (!f->fullscreen) {
+                /* Win: F5 */
                 fx_hid_key(&b, 0U, PC_KEY_F5);
+                /* macOS PowerPoint: Cmd + Shift + Enter */
+                fx_hid_key(&b,
+                           (uint8_t)(PC_MOD_LGUI | PC_MOD_LSHIFT),
+                           PC_KEY_RETURN);
+                /* macOS Keynote: Cmd + Option + P */
+                fx_hid_key(&b,
+                           (uint8_t)(PC_MOD_LGUI | PC_MOD_LALT),
+                           PC_KEY_P);
                 fx_push(&b, PC_FX_PAGE_ENTER_FULLSCREEN);
                 f->fullscreen = true;
             } else {
