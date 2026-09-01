@@ -126,12 +126,12 @@ esp_err_t bsp_display_init(void) {
     }
 
     esp_lcd_panel_invert_color(s_panel, BSP_LCD_INVERT_COLOR);   // 0x21 / 0x20
-    esp_lcd_panel_mirror(s_panel, false, false);                 // 0x36 MADCTL:本板不需镜像(XY 双镜像 = 画面 180°)
+    // esp_lcd_panel_mirror(s_panel, false, false);                 // 0x36 MADCTL —— 由 LVGL port 在 lvgl_port_add_disp() 中重新下发,避免冲突
     esp_lcd_panel_set_gap(s_panel, 0, 0);
     esp_lcd_panel_disp_on_off(s_panel, true);                    // 0x29 DISPON
 
     backlight_init();
-    ESP_LOGI(TAG, "显示就绪 %dx%d", BSP_LCD_W, BSP_LCD_H);
+    ESP_LOGI(TAG, "ST7789 panel init OK (rotation 由 LVGL port 控制: swap_xy=true mirror_x=false mirror_y=true)");
     return ESP_OK;
 }
 
