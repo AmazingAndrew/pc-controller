@@ -29,6 +29,11 @@ CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
 
 # --- LVGL ---
 CONFIG_LV_COLOR_DEPTH_16=y
+# 关闭 LVGL 内部 SW 渲染对 swapped RGB565 格式的支持,
+# 避免 .flags.swap_bytes=true 在 esp_lvgl_port 的 flush 回调里
+# 再做一次 lv_draw_sw_rgb565_swap 时出现双重转换/颜色异常。
+# 仅保留常规 RGB565 blend 函数,字节序由 port 层单点处理。
+# CONFIG_LV_DRAW_SW_SUPPORT_RGB565_SWAPPED is not set
 CONFIG_LV_FONT_MONTSERRAT_14=y
 CONFIG_LV_FONT_MONTSERRAT_20=y
 # PC Controller 仪表/HUD 表达使用 8px 占位字体(主面板标签、电池
