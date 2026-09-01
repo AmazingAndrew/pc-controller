@@ -107,11 +107,32 @@ Wi-Fi, NimBLE, and sleep use ESP-IDF directly rather than the BSP. `demo_radio.c
 - `BSP_LCD_INVERT_COLOR=1`; change inversion only after measurement with the replacement panel.
 - Reset is software-only, gap is `(0, 0)`, X/Y mirroring is disabled, and LVGL rotation may override lower-level mirror settings.
 - The vendor porch, power, and gamma sequence in `bsp_display.c` is panel-specific. Do not treat it as a universal ST7789 sequence.
-- `swap_bytes=true` is required because LVGL emits little-endian RGB565 while SPI sends the high byte first.
+- `swap_bytes` is controlled by `CONFIG_BSP_LCD_SWAP_BYTES`. Most ST7789 batches need `y` because LVGL emits little-endian RGB565 while SPI sends the high byte first; the current hardware batch needs `n` and is set in `sdkconfig.defaults`. Verify by panel-batch measurement.
 
-The LVGL DMA buffer is one `240 × 20` RGB565 buffer, about 9.6 KB; the LVGL internal pool is 24 KB. Do not add large/double buffers without checking internal RAM, the largest contiguous heap block, and I2S DMA.
+The LVGL DMA buffer is one `240 × 20` RGB565 buffer, about 9.6 KB; the LVGL internal pool is 32 KB (raised from 24 KB so the PC Controller HUD/animations fit without drawing stalls). Do not add large/double buffers without checking internal RAM, the largest contiguous heap block, and I2S DMA.
 
 LVGL is not thread-safe. Timer callbacks in LVGL context may access objects directly. Button callbacks and worker tasks must use `bsp_lvgl_lock()`/`bsp_lvgl_unlock()`. Stop producers before deleting a page and clear static object pointers afterward.
+
+### 5.1 Rotation configuration empirical record
+
+#### Current configuration
+
+- `swap_xy = false, mirror_x = false, mirror_y = false`
+- The physical mounting direction of the screen matches the software coordinate system (portrait, top up).
+- The `swap_bytes` flag is now driven by `CONFIG_BSP_LCD_SWAP_BYTES`; the current hardware batch requires `n` (LVGL LE output fed directly to the SPI bus), while the reference panel typically needs `y`.
+
+#### Historical debugging record
+
+1. **Initial configuration**: `{false, false, false}` — upstream default.
+2. **Attempt 90° CW**: `{swap_xy=true, mirror_x=false, mirror_y=true}` — caused LVGL rendering coordinates to misalign with LCD physical coordinates; only the top 20 rows displayed correctly while the rest of the framebuffer retained stale content.
+3. **Root cause analysis**: The rotation change triggered `lvgl_port_disp_rotation_update()` to reissue MADCTL, and LVGL PARTIAL flush failed at chunk 2+ (DMA/ISR race or coordinate calculation error in the LVGL port rotation path).
+4. **Rollback**: Restore `{false, false, false}`, display returns to normal.
+
+#### Notes
+
+- Re-measure when the panel batch or mounting direction changes.
+- Rotation and `swap_bytes` are independent; verify them separately.
+- Validation method: render solid color blocks plus text and confirm the orientation and colors are correct.
 
 ## 6. ADC button ladder
 
@@ -175,7 +196,7 @@ payload. See the [BLE compatibility contract](../development/ble-recovery-compat
 
 The console is USB Serial/JTAG. Do not switch to the UART0 default output without resolving its GPIO21 conflict with the backlight.
 
-Review at least the 24 KB LVGL pool, 9.6 KB LCD DMA buffer, I2S DMA, 96 KB demo recording, radio stacks, task stacks, total free heap, and largest contiguous block when adding assets, TLS/networking, audio buffers, or double buffering.
+Review at least the 32 KB LVGL pool, 9.6 KB LCD DMA buffer, I2S DMA, 96 KB demo recording, radio stacks, task stacks, total free heap, and largest contiguous block when adding assets, TLS/networking, audio buffers, or double buffering.
 
 ## 11. Adding features
 

@@ -41,8 +41,13 @@ CONFIG_LV_FONT_MONTSERRAT_20=y
 # 作为 placeholder)。只有 presenter 档需要,默认 demo 不启。
 CONFIG_LV_FONT_UNSCII_8=y
 # LVGL 内置 malloc 池大小(KB)。它是独立静态区、不与系统堆共享,配大了会白白占用 RAM。
-# 本 demo UI 简单,24KB 足够;若自建复杂界面出现绘制卡死/看门狗,调大此值。
-CONFIG_LV_MEM_SIZE_KILOBYTES=24
+# 演示档使用 24KB 足够；PC Controller (presenter) HUD/动画/状态切换较多，扩到 32KB。
+# 若自建复杂界面出现绘制卡死/看门狗,继续调大此值,但要注意无 PSRAM 的 C3 内存预算。
+CONFIG_LV_MEM_SIZE_KILOBYTES=32
+
+# LCD byte swap: 当前批次实测需 false（LVGL 小端直接匹配 SPI 大端）
+# 大多数 ST7789 批次需 true，更换面板时需重新实测
+CONFIG_BSP_LCD_SWAP_BYTES=n
 
 # --- 系统 ---
 CONFIG_FREERTOS_HZ=1000

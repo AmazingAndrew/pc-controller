@@ -31,14 +31,14 @@ lv_display_t *bsp_lvgl_init(void) {
         .buffer_size   = (uint32_t)BSP_LCD_W * 20,
         .double_buffer = false,
         .hres = BSP_LCD_W, .vres = BSP_LCD_H,
-        // 旋转/镜像必须在这里配:esp_lvgl_port 注册显示时会重新下发 MADCTL,
-        // 覆盖 bsp_display.c 里 esp_lcd_panel_mirror() 的设置。
+        // rotation: 当前实测值 {false,false,false}，屏幕物理装配方向与软件坐标一致
+        // 历史曾尝试 swap_xy=true/mirror_y=true（90° CW + Y 镜像），但导致 LVGL 渲染坐标
+        // 与 LCD 物理坐标错位，仅部分覆盖 framebuffer。回滚后显示正常。
+        // 如更换面板批次或装配方向，需重新实测 rotation 配置。
         .rotation = { .swap_xy = false, .mirror_x = false, .mirror_y = false },
-        // swap_bytes: 此批次 ST7789 面板实测期望小端 RGB565(LVGL 默认),
-        // 不交换字节后颜色显示正确(否则呈浅蓝/白色背景)。
-        // 上游默认值 swap_bytes=true 是基于参考例程的旧批次面板,
-        // 本机实测需 swap_bytes=false。后续如更换面板批次请重新评估。
-        .flags = { .buff_dma = true, .swap_bytes = false },
+        // swap_bytes 由 Kconfig 控制（CONFIG_BSP_LCD_SWAP_BYTES）
+        // 大多数 ST7789 批次需 true（LVGL 小端 → SPI 大端），当前批次实测需 false
+        .flags = { .buff_dma = true, .swap_bytes = CONFIG_BSP_LCD_SWAP_BYTES },
     };
     s_disp = lvgl_port_add_disp(&dc);
     if (!s_disp) { ESP_LOGE(TAG, "lvgl_port_add_disp 失败"); return NULL; }

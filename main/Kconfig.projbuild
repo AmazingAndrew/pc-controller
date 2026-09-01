@@ -13,3 +13,14 @@ menu "PC Controller Application"
             Build the PC Controller BLE HID presenter firmware instead of
             the default demo application.
 endmenu
+
+menu "BSP Display Options"
+    config BSP_LCD_SWAP_BYTES
+        bool "LCD byte swap for RGB565 (LVGL LE to SPI BE)"
+        default y
+        help
+          ST7789 面板通过 SPI 接收大端 RGB565，LVGL 输出小端。
+          大多数批次需要 swap_bytes=true（默认）。
+          当前硬件批次实测需 false，通过 sdkconfig.defaults 覆盖。
+          更换面板批次时需重新实测。
+endmenu
