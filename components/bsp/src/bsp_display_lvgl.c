@@ -34,8 +34,11 @@ lv_display_t *bsp_lvgl_init(void) {
         // 旋转/镜像必须在这里配:esp_lvgl_port 注册显示时会重新下发 MADCTL,
         // 覆盖 bsp_display.c 里 esp_lcd_panel_mirror() 的设置。
         .rotation = { .swap_xy = false, .mirror_x = false, .mirror_y = false },
-        // swap_bytes:LVGL 输出小端 RGB565,ST7789 走 SPI 要大端 → 需交换高低字节。
-        .flags = { .buff_dma = true, .swap_bytes = true },
+        // swap_bytes: 此批次 ST7789 面板实测期望小端 RGB565(LVGL 默认),
+        // 不交换字节后颜色显示正确(否则呈浅蓝/白色背景)。
+        // 上游默认值 swap_bytes=true 是基于参考例程的旧批次面板,
+        // 本机实测需 swap_bytes=false。后续如更换面板批次请重新评估。
+        .flags = { .buff_dma = true, .swap_bytes = false },
     };
     s_disp = lvgl_port_add_disp(&dc);
     if (!s_disp) { ESP_LOGE(TAG, "lvgl_port_add_disp 失败"); return NULL; }
