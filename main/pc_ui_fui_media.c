@@ -102,7 +102,8 @@ lv_obj_t *pc_ui_media_build(void)
     return scr;
 }
 
-/* 音量刷新:仅媒体页在屏时生效(路由在 pc_ui.c 判定)。 */
+/* 音量刷新:仅媒体页在屏时生效(路由在 pc_ui.c 判定)。
+ * 钳制范围 0..99 与 pc_ui_set_volume 保持一致。 */
 void pc_ui_media_set_volume(int vol)
 {
     if (s_vol == NULL) return;

@@ -1,10 +1,12 @@
-# Build-profile switch for the PC Controller (presenter) application.
-#
-# The presenter profile is selected by layering sdkconfig.presenter.defaults
-# (which sets CONFIG_PC_CONTROLLER_APP=y) on top of sdkconfig.defaults via
-# SDKCONFIG_DEFAULTS. The default demo profile never sets this symbol, so it
-# stays "n" there and main/CMakeLists.txt registers the unchanged default
-# source set. See docs/software-design/pc-controller/requirements.md §2.
+# Build-profile switch retained as a Kconfig symbol for downstream
+# consumers that inspect sdkconfig (sdkconfig.defaults sets it to y on
+# this fork). It is no longer used to gate source selection: main/
+# CMakeLists.txt compiles the demo and PC Controller (BLE HID presenter)
+# sources into a single image, and pc_app_main.c provides the sole
+# app_main(). The legacy sdkconfig.presenter.defaults layered profile has
+# been folded into sdkconfig.defaults so the demo and presenter profiles
+# stay in lock-step from a single source of truth.
+# Basis: docs/software-design/pc-controller/requirements.md §2.
 menu "PC Controller Application"
     config PC_CONTROLLER_APP
         bool "PC Controller (BLE HID presenter) application"

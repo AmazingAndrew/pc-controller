@@ -145,11 +145,13 @@ static bool s_battery_ok;
 static volatile bool s_present_active; /* 1 Hz tick 入队闸门 */
 static bool s_feedback_shown;          /* 反馈页在屏 */
 static uint32_t s_queue_drops;         /* 队列满丢事件计数 */
-static uint8_t s_volume = 50;          /* 媒体音量本地展示计数 0..100,
+static uint8_t s_volume = 50;          /* 媒体音量本地展示计数 0..99,
                                         * 初值取中。Consumer 协议只发相对
                                         * 步进(VOL_UP/DOWN),无绝对音量
                                         * 回读,本计数仅供屏显(规格 §1/
-                                        * FR-04、ui-design §4.4"VOL nn")。 */
+                                        * FR-04、ui-design §4.4"VOL nn")。
+                                        * 上限 99 与 UI 路径钳制一致
+                                        * (pc_ui_set_volume / pc_ui_media_set_volume)。 */
 
 static void app_task(void *arg);
 static void run_effects(const pc_effect_t *fx, int n);
@@ -454,7 +456,7 @@ static void run_effects(const pc_effect_t *fx, int n)
              * 发送失败不回滚(展示性计数,无真值可对)。经
              * pc_ui_set_volume 推给媒体页(持锁;仅媒体页在屏时
              * 生效,越界钳制,见 pc_ui.h)。线程上下文:应用任务。 */
-            if (usage == PC_USAGE_VOL_UP && s_volume < 100U) {
+            if (usage == PC_USAGE_VOL_UP && s_volume < 99U) {
                 s_volume++;
             } else if (usage == PC_USAGE_VOL_DOWN && s_volume > 0U) {
                 s_volume--;

@@ -103,7 +103,11 @@ static void on_key(bsp_btn_t btn, bsp_btn_ev_t ev, void *user) {
     bsp_lvgl_unlock();
 }
 
-#ifndef CONFIG_PC_CONTROLLER_APP
+#if 0  // Demo entry disabled: PC Controller uses pc_app_main.c as sole app_main
+       // CMakeLists.txt compiles both main.c and pc_app_main.c into the same image
+       // CONFIG_PC_CONTROLLER_APP guard in pc_app_main.c would otherwise reject this file
+       // if both app_main() symbols were active. Keep this block reachable but inert so
+       // the BSP menu demo can be revived later by flipping the guard back on.
 void app_main(void) {
     ESP_LOGI(TAG, "FoloToy AI Passport BSP demo 启动");
     esp_sleep_wakeup_cause_t wakeup = esp_sleep_get_wakeup_cause();
@@ -138,4 +142,4 @@ void app_main(void) {
     ESP_LOGI(TAG, "就绪:Display=%d Button=%d Audio=%d Battery=%d",
              s_ok[0], s_ok[1], s_ok[2], s_ok[3]);
 }
-#endif /* !CONFIG_PC_CONTROLLER_APP */
+#endif /* demo entry disabled */

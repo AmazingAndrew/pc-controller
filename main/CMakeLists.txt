@@ -1,10 +1,10 @@
 # ============================================================================
 # Single, unified component registration for the FoloToy AI Passport
-# firmware. All sources -- demo application files, PC Controller (BLE HID
-# presenter) files, FUI UI layer, and pixel-graphics helpers -- are compiled
-# into one image. The CONFIG_PC_CONTROLLER_APP build-profile switch has been
-# removed; it remains a Kconfig symbol (sdkconfig.defaults sets it to y) but
-# no longer gates which sources are linked.
+# firmware. Demo pages, PC Controller (BLE HID presenter), FUI UI layer,
+# and pixel-graphics helpers are all compiled into one image. There is
+# no longer a separate presenter build profile: the legacy
+# sdkconfig.presenter.defaults layer was folded into sdkconfig.defaults
+# so this fork always builds the demo + presenter union.
 #
 # Source of truth: docs/software-design/pc-controller/requirements.md
 # ============================================================================

@@ -378,7 +378,13 @@ void pc_fui_set_leave_cb(void (*cb)(void))
 
 lv_obj_t *pc_fui_switch_page(pc_fui_builder_t build)
 {
-    /* 1-2. 页面退场钩子(停自建定时器/动画)→ 删旧屏 → 降背光。 */
+    /* 转场顺序（与 `teardown_screen` / spec §5 规则 4 同步）：
+     *   1. 页面 leave hook（页面自建定时器 / 灯条动画在页面内停）
+     *   2. 删除旧屏与动画（先 `lv_anim_delete(NULL, NULL)` 清除
+     *      屏级扫描线等动画，再 `lv_obj_delete(s_scr)`，清静态指针）
+     *   3. 背光降到 PC_FUI_DIM_PCT（黑场过渡，避免新内容闪过中间帧）
+     *   4. 构造 / 加载新页（构建失败回填纯底色最小屏）
+     *   5. 恢复 `s_backlight` 配置档（新屏首绘与背光同拍闪切） */
     if (s_leave_cb != NULL) {
         s_leave_cb();
         s_leave_cb = NULL;
@@ -386,7 +392,7 @@ lv_obj_t *pc_fui_switch_page(pc_fui_builder_t build)
     teardown_screen();
     bsp_display_backlight(PC_FUI_DIM_PCT);
 
-    /* 3-4. 建新屏并载入。构建失败:保留一个最小降级屏(纯底色),
+    /* 3-4. 建新屏并载入（上面顺序中第 4 步）。构建失败:保留一个最小降级屏(纯底色),
      * 保证屏幕始终有可显示对象(规格 §9 内存红线下的最后防线)。 */
     lv_obj_t *next = build();
     if (next == NULL) {
@@ -400,7 +406,7 @@ lv_obj_t *pc_fui_switch_page(pc_fui_builder_t build)
     s_scr = next;
     lv_screen_load(s_scr);
 
-    /* 5. 恢复背光。说明:新屏的首帧渲染在释放 LVGL 锁后由渲染
+    /* 5. 恢复配置背光（上面顺序中第 5 步）。说明:新屏的首帧渲染在释放 LVGL 锁后由渲染
      * 任务完成;背光恢复与之同拍,视觉上为一次快速黑场闪切,
      * 符合 §5 规则 4"无连续过渡动画"。 */
     bsp_display_backlight(s_backlight);

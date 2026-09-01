@@ -264,11 +264,15 @@ void pc_ui_set_menu_sel(int sel)
 
 void pc_ui_set_volume(int vol)
 {
-    /* D1 修复:钳制上限改为 100,与装配层 s_volume < 100U 的
-     * 增量保护(见 pc_app_main.c FX_HID_CONSUMER 处理)对齐,
-     * 避免装配层推到 100 后被 UI 错夹为 99。 */
+    /* 钳制上限与下限统一为 0..99：
+     *   - 上限 99 与媒体页封顶一致（见 pc_ui_fui_media.c 的
+     *     `pc_ui_media_set_volume`），避免同一量值在两个路径被
+     *     错夹为不同上限；
+     *   - 下限 0 为保险，UI 上不表现方向变化。
+     * 跨路径一致后,组装层（pc_app_main.c 的 FX_HID_CONSUMER 处
+     * 理）推到 99 不会被上层错夹为 100。 */
     if (vol < 0) vol = 0;
-    if (vol > 100) vol = 100;
+    if (vol > 99) vol = 99;
     s_volume = vol;
     if (s_page == PC_PAGE_MEDIA) {
         pc_ui_media_set_volume(vol);
