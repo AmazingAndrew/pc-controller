@@ -17,6 +17,8 @@
 // 线程契约:全部函数假定调用方已持 bsp_lvgl_lock();内部不加锁。
 #include "pc_ui_fui.h"
 
+#include "esp_log.h"
+
 #include "bsp_display.h"
 #include "pc_storage.h"
 
@@ -25,6 +27,9 @@
 static lv_obj_t *s_scr;        /* 当前活动屏幕(转场期间为 NULL) */
 static uint8_t s_backlight = 100; /* 用户背光档(转场后恢复用) */
 static void (*s_leave_cb)(void);  /* 当前页登记的退页清理钩子 */
+
+/* ESP_LOGE 标签:覆盖本页所有 lv_obj_create() 失败日志。 */
+static const char *TAG = "pc_ui_fui";
 
 /* 电池控件:挂屏顶栏右侧。电池读数 -1 时只画外框不画数字(§8)。 */
 static lv_obj_t *s_batt_fill;  /* 外框内填充条(宽度随电量) */
@@ -75,6 +80,10 @@ static void battery_widget(lv_obj_t *scr)
 
     /* 电池外框:18×10,2 px FRAME 边,透明底。 */
     lv_obj_t *frame = lv_obj_create(scr);
+    if (frame == NULL) {
+        ESP_LOGE(TAG, "Failed to create battery frame (LVGL OOM?)");
+        return;
+    }
     lv_obj_remove_flag(frame, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_size(frame, 18, 10);
     lv_obj_align(frame, LV_ALIGN_TOP_RIGHT, -18, 9);
@@ -86,6 +95,10 @@ static void battery_widget(lv_obj_t *scr)
 
     /* 内部填充条:宽度随电量;初始 0 = 外框态。 */
     s_batt_fill = lv_obj_create(frame);
+    if (s_batt_fill == NULL) {
+        ESP_LOGE(TAG, "Failed to create battery fill (LVGL OOM?)");
+        return;
+    }
     lv_obj_remove_flag(s_batt_fill, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_pos(s_batt_fill, 0, 0);
     lv_obj_set_size(s_batt_fill, 0, 4);
