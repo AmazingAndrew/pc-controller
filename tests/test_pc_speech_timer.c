@@ -22,7 +22,7 @@
 int main(void)
 {
     pc_speech_timer_t t;
-    char out[8];
+    char out[9];
     int i;
 
     /* 清零(进入演示模式,规格 §1/FR-05):读数 0,显示 "00:00"。 */
