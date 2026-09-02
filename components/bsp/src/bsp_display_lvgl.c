@@ -39,7 +39,13 @@ lv_display_t *bsp_lvgl_init(void) {
         .rotation = { .swap_xy = false, .mirror_x = false, .mirror_y = false },
         // swap_bytes 由 Kconfig 控制（CONFIG_BSP_LCD_SWAP_BYTES）
         // 大多数 ST7789 批次需 true（LVGL 小端 → SPI 大端），当前批次实测需 false
-        .flags = { .buff_dma = true, .swap_bytes = CONFIG_BSP_LCD_SWAP_BYTES },
+        .flags = { .buff_dma = true,
+        #ifdef CONFIG_BSP_LCD_SWAP_BYTES
+                           .swap_bytes = true
+        #else
+                           .swap_bytes = false
+        #endif
+                },
     };
     s_disp = lvgl_port_add_disp(&dc);
     if (!s_disp) { ESP_LOGE(TAG, "lvgl_port_add_disp 失败"); return NULL; }
