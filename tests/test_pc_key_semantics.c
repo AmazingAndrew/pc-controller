@@ -58,9 +58,10 @@ int main(void)
     assert(pc_key_map(PC_ST_PRESENT, PC_BTN_UP, PC_EV_LONG, true) == PC_ACT_NONE);
     assert(pc_key_map(PC_ST_PRESENT, PC_BTN_DOWN, PC_EV_LONG, true) == PC_ACT_NONE);
 
-    /* 行 7:OK 短按 -> 全屏切换;OK 长按 -> 回待机。 */
+    /* 行 7:OK 短按 -> 全屏切换;OK 长按 -> 切换计时暂停/恢复(任务 #47)。 */
     assert(pc_key_map(PC_ST_PRESENT, PC_BTN_OK, PC_EV_CLICK, true) == PC_ACT_FULLSCREEN_TOGGLE);
-    assert(pc_key_map(PC_ST_PRESENT, PC_BTN_OK, PC_EV_LONG, true) == PC_ACT_EXIT_TO_STANDBY);
+    /* 任务 #47:OK 长按在演示模式切换计时暂停/恢复(不再退出 PRESENT)。 */
+    assert(pc_key_map(PC_ST_PRESENT, PC_BTN_OK, PC_EV_LONG, true) == PC_ACT_TIMER_TOGGLE);
 
     /* 锁屏在演示模式被禁用(规格 §1 非目标第 3 条):
      * 任何键任何事件都不得给出 PC_ACT_LOCK。 */
