@@ -28,6 +28,9 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
