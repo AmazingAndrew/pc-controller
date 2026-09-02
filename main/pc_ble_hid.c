@@ -434,7 +434,7 @@ static int adv_general_locked(void)
      * 宏 (该宏位于 host/util/util.h, 部分 fork 版本未覆盖), 这里
      * 用裸常量 0x1812 并加注释说明 (与 s_svcs[0] 的 HID Service
      * 一致,见文件上方 GATT 表)。 */
-    static const uint16_t s_hid_uuid = 0x1812;
+    static const ble_uuid16_t s_hid_uuid = BLE_UUID16_INIT(0x1812);
     fields.uuids16 = &s_hid_uuid;
     fields.num_uuids16 = 1;
     fields.uuids16_is_complete = 1;

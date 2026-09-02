@@ -61,6 +61,7 @@
 
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "nvs_flash.h"      /* nvs_flash_erase() — do_ble_reset */
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
