@@ -108,7 +108,7 @@ static void emit_blocks(const lv_draw_buf_t *buf)
     const uint32_t w = buf->header.w;
     const uint32_t h = buf->header.h;
     const uint32_t stride = buf->header.stride;
-    const uint8_t *base = (const uint8_t *)lv_draw_buf_get_buf(buf);
+    const uint8_t *base = buf->data;
 
     char hdr[64];
     for (uint32_t y = 0; y < h; y += PC_BLOCK_ROWS) {

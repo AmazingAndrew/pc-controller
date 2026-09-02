@@ -57,6 +57,7 @@
 #include "pc_storage.h"
 #include "pc_strings.h"
 #include "pc_ui.h"
+#include "pc_ui_int.h"   /* pc_ui_present_set_paused() */
 
 #include "esp_log.h"
 #include "esp_timer.h"
